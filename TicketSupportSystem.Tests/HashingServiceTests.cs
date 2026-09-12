@@ -58,7 +58,7 @@ public class HashingServiceTests
 
         Assert.Equal(HashCheckResult.Failed, result);
     }
-      [Fact]
+    [Fact]
     public void Verify_returns_Failed_for_garbage_base64_input()
     {
         string passwordHash = Convert.ToBase64String(new byte[] { 1, 2, 3 });

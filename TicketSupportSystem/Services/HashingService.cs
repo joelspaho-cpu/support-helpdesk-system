@@ -21,7 +21,8 @@ public class HashingService : IHashingService
     }
     
     public HashCheckResult Verify(string password, string hash){
-        try{
+        try
+        {
         var result = _hasher.VerifyHashedPassword(new object(), hash, password);
         return result switch
         {

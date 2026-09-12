@@ -6,6 +6,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using TicketSupportSystem.Data;
+using TicketSupportSystem.Extensions;
 
 
 namespace TicketSupportSystem.Pages.UserView
@@ -15,14 +16,14 @@ namespace TicketSupportSystem.Pages.UserView
     {
         private readonly AppDbContext _db; 
         [BindProperty]
-        [Required, MaxLength(30)]
+        [Required(ErrorMessage = "Subject cannot be empty"), MaxLength(30)]
         public string Subject {get; set;} = string.Empty;
         [BindProperty]
-        [Required, MaxLength(5000)]
+        [Required(ErrorMessage = "Descripton cannot be empty"), MaxLength(5000)]
         public string Description {get; set;} = string.Empty;
         [BindProperty]
-        [Required]
-        public TicketQuery Query {get; set;} = 0;
+        [Required(ErrorMessage = "Please select a query type")]
+        public TicketQuery? Query {get; set;}
         public TicketCreationModel (AppDbContext db)
         {
             _db = db;
@@ -35,26 +36,19 @@ namespace TicketSupportSystem.Pages.UserView
         {
             if (!ModelState.IsValid) return Page();
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-            var idClaim = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out int result);
-            if (idClaim && result != 0) {
-            Ticket ticket = new Ticket{
-                UserID = result,
+            var userID = User.GetId();
+            if (userID == null) { await HttpContext.SignOutAsync("UserScheme"); return RedirectToPage("/UserView/Login"); } 
+            Ticket Ticket = new Ticket{
+                UserID = userID.Value,
                 Subject = Subject,
                 Description = Description,
-                Query = Query,
+                Query = Query!.Value,
                 IPAddress = ip,
                 CreatedAt = DateTime.UtcNow
             };
-            _db.Tickets.Add(ticket);
+            _db.Tickets.Add(Ticket);
             await _db.SaveChangesAsync();
-            }
-            else { 
-                TempData["ErrorMessage"] = "Session expired";
-                await HttpContext.SignOutAsync("UserScheme");
-                return RedirectToPage("/UserView/Login");
-                }
-            TempData["SuccessMessage"] = "Submitted Successfully";
-            return RedirectToPage("/UserView/Dashboard");
+            return RedirectToPage("/UserView/TicketViewer", new { id = Ticket.TicketID });
         }
     }
 }

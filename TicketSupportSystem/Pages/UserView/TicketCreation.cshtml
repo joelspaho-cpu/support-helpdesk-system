@@ -8,14 +8,9 @@
     </div>
     <div class="mb-3">
     <label asp-for="Query" class="form-label">What are you enquiring about? </label>
-    <select asp-for="Query" class="form-control">
-        <option value="">--Select your query--</option>
-        <option value="0">General Question</option>
-        <option value="1">Billing</option>
-        <option value="2">Account</option>
-        <option value="3">Product</option>
-        <option value="4">Feedback/Complaint</option>
-        <option value="5">Sales</option></select>
+    <select asp-for="Query" asp-items="Html.GetEnumSelectList<Models.TicketQuery>()" class="form-control">
+    <option value="">-- Select your query --</option>
+    </select>
     <span asp-validation-for="Query" class="text-danger"></span>
     </div>
     <div class="mb-3">

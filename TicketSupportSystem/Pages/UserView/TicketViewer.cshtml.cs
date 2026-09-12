@@ -7,6 +7,8 @@ using TicketSupportSystem.Models;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using TicketSupportSystem.Extensions;
+using TicketSupportSystem.ViewModels;
+
 
 namespace TicketSupportSystem.Pages.UserView
 {
@@ -18,7 +20,6 @@ namespace TicketSupportSystem.Pages.UserView
         public List<MessageView> Messages {get; set;} = new List<MessageView>();
         [BindProperty]
         public required string ReplyText {get; set;} = string.Empty;
-        public record MessageView(string Response, DateTime PostedAt, string AuthorName);
 
         public TicketViewerModel(AppDbContext db)
         {

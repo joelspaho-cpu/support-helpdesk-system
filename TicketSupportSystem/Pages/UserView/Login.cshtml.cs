@@ -55,13 +55,13 @@ namespace TicketSupportSystem.Pages.UserView
                     await _db.SaveChangesAsync();
                     break;
             }
-            var Claims = new List<Claim>
+            var claims = new List<Claim>
                 {
                   new Claim(ClaimTypes.NameIdentifier, Convert.ToString(user.UserID))
                 };
-            var Identity = new ClaimsIdentity(Claims, "UserScheme");
-            var Principal = new ClaimsPrincipal(Identity);
-            await HttpContext.SignInAsync("UserScheme", Principal, new AuthenticationProperties { IsPersistent = RemainSignedIn });
+            var identity = new ClaimsIdentity(claims, "UserScheme");
+            var principal = new ClaimsPrincipal(identity);
+            await HttpContext.SignInAsync("UserScheme", principal, new AuthenticationProperties { IsPersistent = RemainSignedIn });
             return RedirectToPage("/UserView/Dashboard");
             }
     }

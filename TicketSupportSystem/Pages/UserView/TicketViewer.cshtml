@@ -16,7 +16,7 @@
     <div class="ticket-body">
         @foreach (var message in Model.Messages)
         {
-            <p><strong>@(message.ResponseByUser?.DisplayName ?? message.ResponseByStaff?.DisplayName)</strong><span class="badge bg-secondary">Posted At: @message.PostedAt</span></p>
+            <p><strong>@message.AuthorName</strong><span class="badge bg-secondary">Posted At: @message.PostedAt</span></p>
             <p>@message.Response</p>
         }
     </div>

@@ -58,4 +58,13 @@ public class HashingServiceTests
 
         Assert.Equal(HashCheckResult.Failed, result);
     }
+      [Fact]
+    public void Verify_returns_Failed_for_garbage_base64_input()
+    {
+        string passwordHash = Convert.ToBase64String(new byte[] { 1, 2, 3 });
+
+        var result = _sut.Verify("Test123%.*", passwordHash);
+
+        Assert.Equal(HashCheckResult.Failed, result);
+    }
 }

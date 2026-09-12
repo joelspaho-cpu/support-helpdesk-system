@@ -37,35 +37,32 @@ namespace TicketSupportSystem.Pages.UserView
             if (!ModelState.IsValid) return Page();
             Email = Email.Trim().ToLowerInvariant();
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == Email);
-            if (user != null)
-            {
-                var passResult = _hasher.Verify(Password, user.PasswordHash); 
-                if (passResult == HashCheckResult.Failed)
-                {
-                    ModelState.AddModelError("Email", "The email or password is invalid");
-                    return Page();
-                }
-                if (passResult == HashCheckResult.SuccessRehashNeeded)
-                {
-                    var newPass = _hasher.Hash(Password);
-                    user.PasswordHash = newPass;
-                    await _db.SaveChangesAsync();
-                }
-            }
             if (user == null) 
             {
                 var dummyPass = _hasher.DummyHashVerify(Password); // making response times equal in both cases
                 ModelState.AddModelError("Email", "The email or password is invalid");
-                    return Page();
+                return Page();
             }
-                var claims = new List<Claim>
+            var passResult = _hasher.Verify(Password, user.PasswordHash);
+            switch (passResult)
+            {
+                case HashCheckResult.Failed:
+                    ModelState.AddModelError("Email", "The email or password is invalid");
+                    return Page();
+                case HashCheckResult.SuccessRehashNeeded:
+                    var newPass = _hasher.Hash(Password);
+                    user.PasswordHash = newPass;
+                    await _db.SaveChangesAsync();
+                    break;
+            }
+            var Claims = new List<Claim>
                 {
-                  new Claim(ClaimTypes.NameIdentifier, Convert.ToString(user.UserID)),
-                  new Claim(ClaimTypes.Email, user.Email)
+                  new Claim(ClaimTypes.NameIdentifier, Convert.ToString(user.UserID))
                 };
-                var identity = new ClaimsIdentity(claims, "UserScheme");
-                var principal  = new ClaimsPrincipal(identity);
-                await HttpContext.SignInAsync("UserScheme", principal, new AuthenticationProperties { IsPersistent = RemainSignedIn });
-                return RedirectToPage("/UserView/Dashboard");}
+            var Identity = new ClaimsIdentity(Claims, "UserScheme");
+            var Principal = new ClaimsPrincipal(Identity);
+            await HttpContext.SignInAsync("UserScheme", Principal, new AuthenticationProperties { IsPersistent = RemainSignedIn });
+            return RedirectToPage("/UserView/Dashboard");
+            }
     }
 }

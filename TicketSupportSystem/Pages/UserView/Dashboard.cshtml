@@ -4,6 +4,10 @@
     <form method = "post" asp-page-handler="Logout">
          <button type="submit">Log out</button>
     </form>
+     @if (!Model.Tickets.Any())
+          {
+                <p>You haven't raised any tickets yet.</p>
+          }
      @foreach (var ticket in Model.Tickets){
           <p>
           <a asp-page="TicketViewer" asp-route-id="@ticket.TicketID">@ticket.Subject</a>

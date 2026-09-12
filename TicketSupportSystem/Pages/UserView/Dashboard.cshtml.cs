@@ -6,6 +6,7 @@ using TicketSupportSystem.Data;
 using TicketSupportSystem.Models;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using TicketSupportSystem.Extensions;
 
 namespace TicketSupportSystem.Pages.UserView
 {
@@ -20,14 +21,10 @@ namespace TicketSupportSystem.Pages.UserView
         }
         public async Task<IActionResult> OnGetAsync()
         {
-            var idClaim = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out int id);
-            if (idClaim) {
-            var results = await _db.Tickets.Where(q => q.UserID == id).OrderByDescending(q => q.CreatedAt).ToListAsync();
-            Tickets.AddRange(results); 
-            }
-            else { TempData["ErrorMessage"] = "Session expired"; 
-            await HttpContext.SignOutAsync("UserScheme");
-            return RedirectToPage("/UserView/Login"); }
+            var userID = User.GetId();
+            if (userID == null){ await HttpContext.SignOutAsync("UserScheme"); return RedirectToPage("/UserView/Login"); }
+            var TicketResults = await _db.Tickets.Where(q => q.UserID == userID).OrderByDescending(q => q.CreatedAt).ToListAsync();
+            Tickets = TicketResults;
             return Page();
         }
         public async Task<IActionResult> OnPostLogoutAsync()

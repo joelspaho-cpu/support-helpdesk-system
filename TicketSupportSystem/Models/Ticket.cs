@@ -22,8 +22,8 @@ public class Ticket
     [Required, MaxLength(45)]
     public required string IPAddress {get; set;}
     public DateTime? UpdatedAt {get; set;}
-    public Department? Department {get; set;}
-    public int? DepartmentID {get; set;}
+    public Staff? ReferredToEngineer { get; set; }
+    public int? ReferredToEngineerID { get; set; } 
     public DateTime CreatedAt {get; set;}
     
 }

@@ -28,5 +28,4 @@ public class AppDbContext : DbContext
     public DbSet<Ticket> Tickets {get; set;}
     public DbSet<Staff> Staff {get; set;}
     public DbSet<Message> Messages {get; set;}
-    public DbSet<Department> Departments {get; set;}
 }

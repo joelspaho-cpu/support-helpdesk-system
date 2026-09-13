@@ -12,6 +12,7 @@ builder.Services.AddScoped<IHashingService, HashingService>();
 builder.Services.AddAuthentication("UserScheme").AddCookie("UserScheme", options => 
 {options.LoginPath = "/UserView/Login";}).AddCookie("StaffScheme", options => {options.AccessDeniedPath = "/AccessDenied";
 options.LoginPath = "/StaffView/Login";});
+builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 
 

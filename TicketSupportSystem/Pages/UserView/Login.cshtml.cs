@@ -11,10 +11,10 @@ namespace TicketSupportSystem.Pages.UserView
     {
         private readonly IUserService _user;
         [BindProperty]
-        [Required, EmailAddress]
+        [Required(ErrorMessage = "This field cannot be empty"), EmailAddress]
         public string Email {get; set;} = string.Empty;
         [BindProperty]
-        [Required, DataType(DataType.Password)]
+        [Required(ErrorMessage = "This field cannot be empty"), DataType(DataType.Password)]
         public string Password {get; set;} = string.Empty;
         [BindProperty]
         public bool RemainSignedIn {get; set;}
@@ -31,7 +31,9 @@ namespace TicketSupportSystem.Pages.UserView
         {
             if (!ModelState.IsValid) return Page();
             var user = await _user.AuthenticateAsync(Email, Password);
-            if (user == null) return Page();
+            if (user == null) {
+                ModelState.AddModelError(string.Empty, "Invalid email or password.");
+                return Page(); }
             var principal = _user.ConstructPrincipal(user);
             await HttpContext.SignInAsync("UserScheme", principal, new AuthenticationProperties { IsPersistent = RemainSignedIn });
             return RedirectToPage("/UserView/Dashboard");

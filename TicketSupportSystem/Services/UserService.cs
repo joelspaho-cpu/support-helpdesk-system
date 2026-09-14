@@ -30,7 +30,7 @@ public class UserService : IUserService
 
         return user;
     }
-    public async Task<int?> RegisterAsync(string email, string displayName, string password, string region, string language)
+    public async Task<int?> RegisterAsync(string displayName, string email, string password, string region, string language)
     {
         string formattedEmail = email.Trim().ToLowerInvariant();
         bool isTaken = await _db.Users.AnyAsync(u => u.Email == formattedEmail);

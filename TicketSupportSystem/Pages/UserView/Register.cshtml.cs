@@ -1,17 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.ComponentModel.DataAnnotations;
-using TicketSupportSystem.Data;
+
 using TicketSupportSystem.Services;
-using TicketSupportSystem.Models;
-using Microsoft.EntityFrameworkCore;
+
 
 namespace TicketSupportSystem.Pages.UserView
 {
     public class RegisterModel : PageModel
     {
-        private readonly IHashingService _hasher;
-        private readonly AppDbContext _db;
+        private readonly IUserService _user;
         [BindProperty]
         [Required(ErrorMessage = "Please enter a valid display name"), MaxLength(50)]
         public string DisplayName {get; set;} = string.Empty;
@@ -32,10 +30,9 @@ namespace TicketSupportSystem.Pages.UserView
         [BindProperty]
         [Required(ErrorMessage = "Please select your language from the dropdown list"), MaxLength(10)]
         public string Language {get; set;} = string.Empty;
-        public RegisterModel(AppDbContext db, IHashingService hasher)
+        public RegisterModel(IUserService user)
         {
-            _db = db;
-            _hasher = hasher;
+             _user = user;
         }
         public IActionResult OnGet()
         {
@@ -45,25 +42,9 @@ namespace TicketSupportSystem.Pages.UserView
         public async Task<IActionResult> OnPostAsync()
         {
           if (!ModelState.IsValid) return Page();
-          Email = Email.Trim().ToLowerInvariant();
-          bool emailTaken = await _db.Users.AnyAsync(u => u.Email == Email);
-          if (emailTaken) {
-            ModelState.AddModelError("Email", "This email is already registered.");
-            return Page();
-          }
-          string pwHash = _hasher.Hash(Password);
-          User user = new User{
-            DisplayName = DisplayName, 
-            Email = Email, 
-            PasswordHash = pwHash, 
-            Region = Region, 
-            Language = Language, 
-            CreatedAt = DateTime.UtcNow,
-            Has2fa = Has2fa
-          };
-          _db.Users.Add(user);
-          await _db.SaveChangesAsync();
-          return RedirectToPage("Dashboard");
+          var register = await _user.RegisterAsync(DisplayName, Email, Password, Region, Language);
+          if (register == null) return Page(); 
+          return RedirectToPage("/UserView/Dashboard");
         }
     }
 }

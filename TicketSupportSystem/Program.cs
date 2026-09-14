@@ -14,6 +14,7 @@ builder.Services.AddAuthentication("UserScheme").AddCookie("UserScheme", options
 options.LoginPath = "/StaffView/Login";});
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 
 

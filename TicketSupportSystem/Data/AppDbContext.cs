@@ -22,6 +22,7 @@ public class AppDbContext : DbContext
                 .ToTable(t => t.HasCheckConstraint(
                     "CK_Message_ExactlyOneAuthor",
                     "(\"ResponseByUserID\" IS NULL) <> (\"ResponseByStaffID\" IS NULL)"));
+            modelBuilder.Entity<User>().HasIndex(u => u.Email).IsUnique();
     }
 
     public DbSet<User> Users {get; set;}

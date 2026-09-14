@@ -43,3 +43,9 @@
     <button type="submit" class="btn btn-primary">Register</button>
     </div>
   </form>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $.validator.setDefaults({ onkeyup: false });
+    </script>
+}

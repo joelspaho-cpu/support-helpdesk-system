@@ -15,6 +15,8 @@ options.LoginPath = "/StaffView/Login";});
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Persist Data Protection keys (used to sign auth cookies) when a path is configured,
 // so users stay signed in across container rebuilds.

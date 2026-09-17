@@ -9,10 +9,12 @@ public class UserService : IUserService
 {
     private readonly AppDbContext _db;
     private readonly IHashingService _hasher;
-    public UserService(AppDbContext db, IHashingService hash)
+    private readonly IEmailService _email;
+    public UserService(AppDbContext db, IHashingService hash, IEmailService email)
     {
         _db = db;
         _hasher = hash;
+        _email = email;
     }
     public async Task<User?> AuthenticateAsync(string email, string password)
     {
@@ -47,6 +49,14 @@ public class UserService : IUserService
         };
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
+        await _email.SendAsync(
+    user.Email,
+    "Account created successfully",
+    """
+    <p style="font-family: Arial, sans-serif; color: #333333; font-size: 16px;">
+      Welcome! Your account has been created.
+    </p>
+    """);
         return user.UserID;
     }
     public ClaimsPrincipal ConstructPrincipal(User user)

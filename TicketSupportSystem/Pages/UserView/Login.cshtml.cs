@@ -32,7 +32,7 @@ namespace TicketSupportSystem.Pages.UserView
             if (!ModelState.IsValid) return Page();
             var user = await _user.AuthenticateAsync(Email, Password);
             if (user == null) {
-                ModelState.AddModelError(string.Empty, "Invalid email or password.");
+                ModelState.AddModelError(nameof(Email), "Invalid email or password.");
                 return Page(); }
             var principal = _user.ConstructPrincipal(user);
             await HttpContext.SignInAsync("UserScheme", principal, new AuthenticationProperties { IsPersistent = RemainSignedIn });

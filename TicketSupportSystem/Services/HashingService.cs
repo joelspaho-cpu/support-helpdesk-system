@@ -32,4 +32,5 @@ public class HashingService : IHashingService
         };
         } catch (FormatException) { return HashCheckResult.Failed; }
     }
+    
 }

@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Options;
-
 namespace TicketSupportSystem.Services;
 
 public class EmailOptions
@@ -11,5 +9,4 @@ public class EmailOptions
     public string FromAddress {get; set;} = string.Empty;
     public string Username {get; set;} = string.Empty;
 
-    
 }

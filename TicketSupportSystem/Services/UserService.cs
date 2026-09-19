@@ -32,7 +32,7 @@ public class UserService : IUserService
 
         return user;
     }
-    public async Task<int?> RegisterAsync(string displayName, string email, string password, string region, string language)
+    public async Task<int?> RegisterAsync(string displayName, string email, string password, string region, string language, bool has2fa)
     {
         string formattedEmail = email.Trim().ToLowerInvariant();
         bool isTaken = await _db.Users.AnyAsync(u => u.Email == formattedEmail);
@@ -45,7 +45,8 @@ public class UserService : IUserService
             PasswordHash = passwordHash,
             Region = region,
             Language = language,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            Has2fa = has2fa
         };
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
@@ -67,6 +68,24 @@ public class UserService : IUserService
             };
          var identity = new ClaimsIdentity(claims, "UserScheme");
          return new ClaimsPrincipal(identity);
+    }
+    public async Task<int?> CreateVerifiedUserAsync(PendingRegistration pending)
+    {
+        bool isTaken = await _db.Users.AnyAsync(u => u.Email == pending.Email);
+        if (isTaken) return null;
+        User user = new User
+        {
+            DisplayName = pending.DisplayName,
+            Email = pending.Email,
+            PasswordHash = pending.PasswordHash,
+            Region = pending.Region,
+            Language = pending.Language,
+            CreatedAt = DateTime.UtcNow,
+            Has2fa = pending.Has2fa
+        };
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync();
+        return user.UserID;
     }
 
 }

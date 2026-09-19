@@ -12,14 +12,19 @@ builder.Services.AddScoped<IHashingService, HashingService>();
 builder.Services.AddAuthentication("UserScheme").AddCookie("UserScheme", options => 
 {options.LoginPath = "/UserView/Login";}).AddCookie("StaffScheme", options => {options.AccessDeniedPath = "/AccessDenied";
 options.LoginPath = "/StaffView/Login";});
+
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.Configure<CodeHashingServiceOptions>(builder.Configuration.GetSection("Verification"));
+builder.Services.AddScoped<ICodeHashingService, CodeHashingService>();
+builder.Services.AddScoped<IVerificationService, VerificationService>();
 
 // Persist Data Protection keys (used to sign auth cookies) when a path is configured,
 // so users stay signed in across container rebuilds.
+
 var keysPath = builder.Configuration["DataProtection:KeysPath"];
 if (!string.IsNullOrEmpty(keysPath))
 {
@@ -27,7 +32,6 @@ if (!string.IsNullOrEmpty(keysPath))
         .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
         .SetApplicationName("TicketSupportSystem");
 }
-
 
 
 // Add services to the container.

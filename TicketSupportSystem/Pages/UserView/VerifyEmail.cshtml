@@ -1,4 +1,14 @@
-﻿@page
+﻿@page "{id:guid}"
 @model TicketSupportSystem.Pages.UserView.VerifyEmailModel
-@{
-}
+
+<h1>Check your email</h1>
+<p>We've sent you a 6-digit code. It expires in a few minutes.</p>
+
+<form method="post">
+    <input asp-for="EnteredCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6"
+           style="font-size: 28px; letter-spacing: 12px; text-align: center; width: 220px;" />
+    <span asp-validation-for="EnteredCode" class="text-danger"></span>
+
+    <button type="submit">Verify</button>
+    <button type="submit" asp-page-handler="Resend" disabled="@(!Model.CanResend)">Resend code</button>
+</form>

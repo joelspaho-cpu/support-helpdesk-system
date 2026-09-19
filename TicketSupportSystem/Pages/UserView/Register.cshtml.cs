@@ -9,7 +9,7 @@ namespace TicketSupportSystem.Pages.UserView
 {
     public class RegisterModel : PageModel
     {
-        private readonly IUserService _user;
+        private readonly IVerificationService _verify;
         [BindProperty]
         [Required(ErrorMessage = "Please enter a valid display name"), MaxLength(50, ErrorMessage ="The display name may not exceed 50 characters")]
         public string DisplayName {get; set;} = string.Empty;
@@ -30,9 +30,9 @@ namespace TicketSupportSystem.Pages.UserView
         [BindProperty]
         [Required(ErrorMessage = "Please select your language from the dropdown list"), MaxLength(10)]
         public string Language {get; set;} = string.Empty;
-        public RegisterModel(IUserService user)
+        public RegisterModel(IVerificationService verify)
         {
-             _user = user;
+             _verify = verify;
         }
         public IActionResult OnGet()
         {
@@ -42,10 +42,9 @@ namespace TicketSupportSystem.Pages.UserView
         public async Task<IActionResult> OnPostAsync()
         {
           if (!ModelState.IsValid) return Page();
-          var register = await _user.RegisterAsync(DisplayName, Email, Password, Region, Language);
-          if (register == null) { ModelState.AddModelError(nameof(Email), "This email is invalid"); return Page(); }
-          TempData["SuccessMessage"] = "Your account has been created successfully.";
-          return RedirectToPage("/UserView/Dashboard");
+          var register = await _verify.StartAsync(DisplayName, Email, Password, Region, Language, Has2fa);
+          if (register == null) { ModelState.AddModelError(nameof(Email), "This email cannot be used at this time, please try again later"); return Page(); }
+          return RedirectToPage("/UserView/VerifyEmail", new { id = register.Value });
         }
     }
 }

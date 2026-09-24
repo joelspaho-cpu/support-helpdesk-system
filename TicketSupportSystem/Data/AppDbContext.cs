@@ -25,12 +25,13 @@ public class AppDbContext : DbContext
             modelBuilder.Entity<User>().HasIndex(u => u.Email).IsUnique();
             modelBuilder.Entity<PendingRegistration>().HasIndex(p => p.Email).IsUnique();
             modelBuilder.Entity<EmailSend>().HasIndex(e => e.Email).IsUnique();
+            modelBuilder.Entity<PendingLogin>().HasIndex(e => e.UserID).IsUnique();
     }
-
     public DbSet<User> Users {get; set;}
     public DbSet<Ticket> Tickets {get; set;}
     public DbSet<Staff> Staff {get; set;}
     public DbSet<Message> Messages {get; set;}
     public DbSet<PendingRegistration> PendingRegistrations {get; set;}
     public DbSet<EmailSend> EmailSends {get; set;}
+    public DbSet<PendingLogin> PendingLogins {get; set;}
 }

@@ -10,6 +10,13 @@ public class UserService : IUserService
     private readonly AppDbContext _db;
     private readonly IHashingService _hasher;
     private readonly IEmailService _email;
+    public string AccountCreateSuccessEmail =
+    """
+    <p style="font-family: Arial, sans-serif; color: #333333; font-size: 16px;">
+      Welcome! Your account has been created.
+    </p>
+    """;
+    public int MaxLoginAttempts = 5;
     public UserService(AppDbContext db, IHashingService hash, IEmailService email)
     {
         _db = db;
@@ -21,9 +28,14 @@ public class UserService : IUserService
         string formattedEmail = email.Trim().ToLowerInvariant();
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == formattedEmail);
         if (user == null) { _hasher.DummyHashVerify(password); return null; } // prevention against timing
+        if (user.Status != UserStatus.Active) return null;
+        if (user.LoginAttempts > MaxLoginAttempts) return null;
         HashCheckResult verifyPassword = _hasher.Verify(password, user.PasswordHash);
-        if (verifyPassword == HashCheckResult.Failed) return null;
-
+        if (verifyPassword == HashCheckResult.Failed) {
+            user.LoginAttempts++;
+            await _db.SaveChangesAsync();
+            return null;
+        }
         if (verifyPassword == HashCheckResult.SuccessRehashNeeded)
             {
                 user.PasswordHash = _hasher.Hash(password);
@@ -53,18 +65,14 @@ public class UserService : IUserService
         await _email.SendAsync(
     user.Email,
     "Account created successfully",
-    """
-    <p style="font-family: Arial, sans-serif; color: #333333; font-size: 16px;">
-      Welcome! Your account has been created.
-    </p>
-    """);
+    AccountCreateSuccessEmail);
         return user.UserID;
     }
-    public ClaimsPrincipal ConstructPrincipal(User user)
+    public ClaimsPrincipal ConstructPrincipal(int UserID)
     {
          var claims = new List<Claim>
             {
-               new Claim(ClaimTypes.NameIdentifier, user.UserID.ToString())
+               new Claim(ClaimTypes.NameIdentifier, UserID.ToString())
             };
          var identity = new ClaimsIdentity(claims, "UserScheme");
          return new ClaimsPrincipal(identity);

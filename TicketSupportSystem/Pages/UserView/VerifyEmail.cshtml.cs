@@ -24,7 +24,7 @@ namespace TicketSupportSystem.Pages.UserView
         public async Task<IActionResult> OnPostAsync(Guid id)
         {
             if (!ModelState.IsValid) return Page();
-            var verify = await _verify.VerifyAsync(id, EnteredCode);
+            var verify = await _verify.RegisterVerifyAsync(id, EnteredCode);
             CanResend = await _verify.CanResendAsync(id); 
             switch (verify)
                 {
@@ -44,8 +44,8 @@ namespace TicketSupportSystem.Pages.UserView
                     TempData["SuccessMessage"] = "Your account has been created successfully.";
                     return RedirectToPage("/UserView/Login");
                 }
-            TempData["ErrorMessage"] = "An unknown error has occurred";
-            return Page();
+            TempData["ErrorMessage"] = "An unknown error has occurred, please try registering again";
+            return RedirectToPage("/UserView/Register");
         }
         public async Task<IActionResult> OnPostResendAsync(Guid id)
         {
@@ -59,7 +59,7 @@ namespace TicketSupportSystem.Pages.UserView
                         TempData["ErrorMessage"] = "You have resent codes too many times, enter the last code you received or try again later.";
                         return RedirectToPage("/UserView/VerifyEmail", new { id });
                     case ResendResult.Success:
-                        TempData["SuccessMessage"] = "We have sent you a code, check your inbox.";
+                        TempData["SuccessMessage"] = "A new code has been sent, please check your inbox.";
                         return RedirectToPage("/UserView/VerifyEmail", new { id });
                 }
                 TempData["ErrorMessage"] = "An unknown error has occurred";

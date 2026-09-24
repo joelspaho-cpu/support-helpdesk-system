@@ -13,8 +13,8 @@ public class VerificationService : IVerificationService
     private readonly IEmailService _email;
     private readonly ICodeHashingService _codehash;
     private readonly IUserService _user;
-    public int MaxAttempts { get; set; } = 5;
-    public int MaxResends { get; set; } = 5;
+    public int MaxAttempts { get; set; } = 7;
+    public int MaxResends { get; set; } = 7;
     public int CodeLifetimeMinutes { get; set; } = 10;
     public int ResendWindowMinutes { get; set; } = 60;
 
@@ -26,12 +26,12 @@ public class VerificationService : IVerificationService
         _codehash = codehash;
         _user = user;
     }
-    
+// REGISTRATION
     public async Task<Guid?> StartAsync(string displayName, string email, string password, string region, string language, bool has2fa)
     {
         var normalisedEmail = email.Trim().ToLowerInvariant(); // normalise email
 
-        bool existsInUsers = await _db.Users.AnyAsync(u => u.Email == normalisedEmail); //check if currently exists return if it does
+        bool existsInUsers = await _db.Users.AnyAsync(u => u.Email == normalisedEmail); // check if currently exists return if it does
         if (existsInUsers) return null; 
 
         if (!await TryRecordSendAsync(normalisedEmail)) return null; // go through check to ensure user isnt ratelimited, if they arent add the email to emailsend if email doesnt exist add to emailsend, increment count and return true, set counter to 1 return true if it exists, false if they are either ratelimited by count or date
@@ -62,7 +62,7 @@ public class VerificationService : IVerificationService
         
         return prospect.Id;
     }
-    public async Task<VerificationResult> VerifyAsync(Guid id, int enteredCode)
+    public async Task<VerificationResult> RegisterVerifyAsync(Guid id, int enteredCode)
     {   
         var prospect = await _db.PendingRegistrations.FirstOrDefaultAsync(u => u.Id == id); 
         if (prospect == null) return VerificationResult.NotFound; // this check is to prevent bad state, if we somehow make it to verifyasync but email doesnt exist we return instead of continuing
@@ -76,8 +76,17 @@ public class VerificationService : IVerificationService
         var user = await _user.CreateVerifiedUserAsync(prospect);
         if (user == null) return VerificationResult.NotFound;
         await _db.PendingRegistrations.Where(u => u.Id == id).ExecuteDeleteAsync(); // create and save user, delete prospect and return success
-        await _db.SaveChangesAsync();
         return VerificationResult.Success;
+    }
+    public async Task<bool> CanResendAsync(Guid id) // frontend method for registration
+    {
+        var prospect = await _db.PendingRegistrations.FirstOrDefaultAsync(u => u.Id == id);
+        if (prospect == null) return false;
+
+        var record = await _db.EmailSends.FirstOrDefaultAsync(e => e.Email == prospect.Email);
+        if (record == null) return false;
+        bool windowActive = record.Expiry > DateTime.UtcNow;
+        return !windowActive || record.ResendCount < MaxResends;
     }
     public async Task<ResendResult> ResendAsync(Guid id)
     {
@@ -99,6 +108,90 @@ public class VerificationService : IVerificationService
 
         return ResendResult.Success;
     }
+// LOGIN
+    public async Task<Guid?> StartLoginAsync(int userId, bool isPersistent)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.UserID == userId);
+        if (user == null) return null;
+        await _db.PendingLogins.Where(p => p.UserID == userId).ExecuteDeleteAsync();
+        
+        var normalisedEmail = user.Email.Trim().ToLowerInvariant();
+        if (!await TryRecordSendAsync(normalisedEmail)) return null;
+        
+        var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+        PendingLogin prospectUser = new PendingLogin{
+            ID = Guid.NewGuid(),
+            UserID = user.UserID,
+            CodeHash = _codehash.Hash(code),
+            CreatedAt = DateTime.UtcNow,
+            AttemptCount = 0,
+            Expiry = DateTime.UtcNow.AddMinutes(CodeLifetimeMinutes),
+            IsPersistent = isPersistent
+        };
+        _db.PendingLogins.Add(prospectUser);
+        await _db.SaveChangesAsync();
+        await _email.SendAsync(
+            user.Email,
+            $"Your Verification Code - {code}",  
+            BuildCodeEmail(code));
+        
+        return prospectUser.ID;
+    }   
+    public async Task<ResendResult> ResendLoginAsync(Guid id)
+    {
+        var prospectLogin = await _db.PendingLogins.Include(p => p.User)
+                                              .FirstOrDefaultAsync(p => p.ID == id);
+        if (prospectLogin == null || prospectLogin.User == null) return ResendResult.NotFound; // prevent bad state
+
+        if (!await TryRecordSendAsync(prospectLogin.User.Email)) return ResendResult.TooManyResends; // ratelimit on email sends if count is higher than what we allow
+
+        string code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+        prospectLogin.CodeHash = _codehash.Hash(code);
+        prospectLogin.Expiry = DateTime.UtcNow.AddMinutes(CodeLifetimeMinutes);
+        prospectLogin.AttemptCount = 0;
+        await _db.SaveChangesAsync();
+        
+        await _email.SendAsync(
+            prospectLogin.User.Email,
+            $"Your Verification Code - {code}",  
+            BuildCodeEmail(code));
+
+        return ResendResult.Success;
+    }
+    public async Task<TwoFactorOutcome> TwoFactorVerifyAsync(Guid id, int enteredCode) //login
+    {
+        var prospectUser = await _db.PendingLogins
+                                                    .Include(p => p.User)
+                                                    .FirstOrDefaultAsync(p => p.ID == id);
+                                                    
+
+        if (prospectUser == null || prospectUser.User == null) return new TwoFactorOutcome(VerificationResult.NotFound);
+        
+        if (prospectUser.AttemptCount >= MaxAttempts) return new TwoFactorOutcome(VerificationResult.TooManyAttempts);
+        if (prospectUser.Expiry <= DateTime.UtcNow) return new TwoFactorOutcome(VerificationResult.Expired);
+
+        bool verify = _codehash.Verify(enteredCode.ToString(), prospectUser.CodeHash);
+        if (!verify) { prospectUser.AttemptCount++; await _db.SaveChangesAsync(); return new TwoFactorOutcome(VerificationResult.InvalidCode); }
+
+        await _db.PendingLogins.Where(u => u.ID == id).ExecuteDeleteAsync();
+        return new TwoFactorOutcome(VerificationResult.Success, prospectUser.UserID, prospectUser.IsPersistent);
+    }
+
+    public async Task<bool> CanResendLoginAsync(Guid id) // frontend method for login
+    {
+        var prospectLoginEmail = await _db.PendingLogins
+                                                .Where(p => p.ID == id)
+                                                .Select(p => p.User!.Email)
+                                                .FirstOrDefaultAsync();
+        if (prospectLoginEmail == null) return false;
+
+        var record = await _db.EmailSends.FirstOrDefaultAsync(e => e.Email == prospectLoginEmail);
+        if (record == null) return false;
+        bool windowActive = record.Expiry > DateTime.UtcNow;
+        return !windowActive || record.ResendCount < MaxResends;
+    }
+
+// Universal
     private async Task<bool> TryRecordSendAsync(string email)
     {
         var record = await _db.EmailSends.FirstOrDefaultAsync(e => e.Email == email);
@@ -128,17 +221,6 @@ public class VerificationService : IVerificationService
         record.ResendCount++;
         return true;
     }
-    public async Task<bool> CanResendAsync(Guid id) // frontend method
-    {
-        var prospect = await _db.PendingRegistrations.FirstOrDefaultAsync(u => u.Id == id);
-        if (prospect == null) return false;
-
-        var record = await _db.EmailSends.FirstOrDefaultAsync(e => e.Email == prospect.Email);
-        if (record == null) return false;
-        bool windowActive = record.Expiry > DateTime.UtcNow;
-        return !windowActive || record.ResendCount < MaxResends;
-    }
-
     private string BuildCodeEmail(string code)
     {
            return $@"

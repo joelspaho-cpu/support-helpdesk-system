@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using System.ComponentModel.DataAnnotations;
 
 using TicketSupportSystem.Services;
@@ -7,6 +8,7 @@ using TicketSupportSystem.Services;
 
 namespace TicketSupportSystem.Pages.UserView
 {
+    [EnableRateLimiting("auth")]
     public class RegisterModel : PageModel
     {
         private readonly IVerificationService _verify;

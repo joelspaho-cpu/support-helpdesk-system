@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using TicketSupportSystem.Data;
@@ -21,6 +22,15 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.Configure<CodeHashingServiceOptions>(builder.Configuration.GetSection("Verification"));
 builder.Services.AddScoped<ICodeHashingService, CodeHashingService>();
 builder.Services.AddScoped<IVerificationService, VerificationService>();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
+});
+
 
 // Persist Data Protection keys (used to sign auth cookies) when a path is configured,
 // so users stay signed in across container rebuilds.
@@ -53,8 +63,8 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

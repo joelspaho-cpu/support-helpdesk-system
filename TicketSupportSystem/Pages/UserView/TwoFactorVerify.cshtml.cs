@@ -2,10 +2,12 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using TicketSupportSystem.Services;
 
 namespace TicketSupportSystem.Pages.UserView
 {
+    [EnableRateLimiting("auth")]
     public class TwoFactorVerifyModel : PageModel
     {
         private readonly IVerificationService _verify;

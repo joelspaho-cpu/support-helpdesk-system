@@ -38,7 +38,6 @@ public class VerificationService : IVerificationService
 
         await _db.PendingRegistrations.Where(p => p.Email == normalisedEmail).ExecuteDeleteAsync(); // if we pass the above and the email exists, we delete the previous pendingregistration since we are attempting new registration
 
-        var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
         PendingRegistration prospect = new PendingRegistration{
             Id = Guid.NewGuid(),
             DisplayName = displayName,
@@ -47,17 +46,16 @@ public class VerificationService : IVerificationService
             Has2fa = has2fa,
             Region = region,
             Language = language,
-            CodeHash = _codehash.Hash(code),
-            CreatedAt = DateTime.UtcNow,
-            AttemptCount = 0,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(CodeLifetimeMinutes)
+            CodeHash = string.Empty, // required by the model; IssueCode sets the real hash below
+            CreatedAt = DateTime.UtcNow
         };
+        var code = IssueCode(prospect);
 
         _db.PendingRegistrations.Add(prospect);
         await _db.SaveChangesAsync();
         await _email.SendAsync(
             prospect.Email,
-            "Your Verification Code",  
+            $"Your Verification Code - {code}",  
             BuildCodeEmail(code));
         
         return prospect.Id;
@@ -67,12 +65,10 @@ public class VerificationService : IVerificationService
         var prospect = await _db.PendingRegistrations.FirstOrDefaultAsync(u => u.Id == id); 
         if (prospect == null) return VerificationResult.NotFound; // this check is to prevent bad state, if we somehow make it to verifyasync but email doesnt exist we return instead of continuing
         
-        if (prospect.AttemptCount >= MaxAttempts) return VerificationResult.TooManyAttempts;
-        if (prospect.ExpiresAt <= DateTime.UtcNow) return VerificationResult.Expired; // expired if code has expired, ratelimit if user has tried entering code too many times
+        var result = await CheckCodeAsync(prospect, enteredCode);
         
-        bool verify = _codehash.Verify(enteredCode.ToString(), prospect.CodeHash);
-        if (!verify) { prospect.AttemptCount++; await _db.SaveChangesAsync(); return VerificationResult.InvalidCode; }
-        
+        if (result != VerificationResult.Success) return result;
+
         var user = await _user.CreateVerifiedUserAsync(prospect);
         if (user == null) return VerificationResult.NotFound;
         await _db.PendingRegistrations.Where(u => u.Id == id).ExecuteDeleteAsync(); // create and save user, delete prospect and return success
@@ -95,10 +91,7 @@ public class VerificationService : IVerificationService
 
         if (!await TryRecordSendAsync(prospect.Email)) return ResendResult.TooManyResends; // ratelimit on email sends if count is higher than what we allow
 
-        string code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
-        prospect.CodeHash = _codehash.Hash(code);
-        prospect.ExpiresAt = DateTime.UtcNow.AddMinutes(CodeLifetimeMinutes);
-        prospect.AttemptCount = 0;
+        var code = IssueCode(prospect);
         await _db.SaveChangesAsync();
         
         await _email.SendAsync(
@@ -118,16 +111,14 @@ public class VerificationService : IVerificationService
         var normalisedEmail = user.Email.Trim().ToLowerInvariant();
         if (!await TryRecordSendAsync(normalisedEmail)) return null;
         
-        var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
         PendingLogin prospectUser = new PendingLogin{
             ID = Guid.NewGuid(),
             UserID = user.UserID,
-            CodeHash = _codehash.Hash(code),
+            CodeHash = string.Empty, // required by the model; IssueCode sets the real hash below
             CreatedAt = DateTime.UtcNow,
-            AttemptCount = 0,
-            Expiry = DateTime.UtcNow.AddMinutes(CodeLifetimeMinutes),
             IsPersistent = isPersistent
         };
+        var code = IssueCode(prospectUser);
         _db.PendingLogins.Add(prospectUser);
         await _db.SaveChangesAsync();
         await _email.SendAsync(
@@ -145,10 +136,7 @@ public class VerificationService : IVerificationService
 
         if (!await TryRecordSendAsync(prospectLogin.User.Email)) return ResendResult.TooManyResends; // ratelimit on email sends if count is higher than what we allow
 
-        string code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
-        prospectLogin.CodeHash = _codehash.Hash(code);
-        prospectLogin.Expiry = DateTime.UtcNow.AddMinutes(CodeLifetimeMinutes);
-        prospectLogin.AttemptCount = 0;
+        var code = IssueCode(prospectLogin);
         await _db.SaveChangesAsync();
         
         await _email.SendAsync(
@@ -167,11 +155,8 @@ public class VerificationService : IVerificationService
 
         if (prospectUser == null || prospectUser.User == null) return new TwoFactorOutcome(VerificationResult.NotFound);
         
-        if (prospectUser.AttemptCount >= MaxAttempts) return new TwoFactorOutcome(VerificationResult.TooManyAttempts);
-        if (prospectUser.Expiry <= DateTime.UtcNow) return new TwoFactorOutcome(VerificationResult.Expired);
-
-        bool verify = _codehash.Verify(enteredCode.ToString(), prospectUser.CodeHash);
-        if (!verify) { prospectUser.AttemptCount++; await _db.SaveChangesAsync(); return new TwoFactorOutcome(VerificationResult.InvalidCode); }
+        var result = await CheckCodeAsync(prospectUser, enteredCode);
+        if (result != VerificationResult.Success) return new TwoFactorOutcome(result);
 
         await _db.PendingLogins.Where(u => u.ID == id).ExecuteDeleteAsync();
         return new TwoFactorOutcome(VerificationResult.Success, prospectUser.UserID, prospectUser.IsPersistent);
@@ -192,6 +177,25 @@ public class VerificationService : IVerificationService
     }
 
 // Universal
+    private string IssueCode(ICodeChallenge pending)
+    {
+        string code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+        var codehash = _codehash.Hash(code);
+        pending.CodeHash = codehash;
+        pending.ExpiresAt = DateTime.UtcNow.AddMinutes(CodeLifetimeMinutes);
+        pending.AttemptCount = 0;
+        return code;
+    }
+    private async Task<VerificationResult> CheckCodeAsync(ICodeChallenge pending, int enteredCode)
+    {
+        if (pending.AttemptCount >= MaxAttempts) return VerificationResult.TooManyAttempts;
+        if (pending.ExpiresAt <= DateTime.UtcNow) return VerificationResult.Expired; // expired if code has expired, ratelimit if user has tried entering code too many times
+        
+        bool verify = _codehash.Verify(enteredCode.ToString(), pending.CodeHash);
+        if (!verify) { pending.AttemptCount++; await _db.SaveChangesAsync(); return VerificationResult.InvalidCode; }
+
+        return VerificationResult.Success;
+    }
     private async Task<bool> TryRecordSendAsync(string email)
     {
         var record = await _db.EmailSends.FirstOrDefaultAsync(e => e.Email == email);

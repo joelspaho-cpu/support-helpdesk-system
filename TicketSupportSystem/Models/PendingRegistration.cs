@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 namespace TicketSupportSystem.Models;
 
-public class PendingRegistration {
+public class PendingRegistration : ICodeChallenge {
     public Guid Id {get; set;}
     [Required, MaxLength(50)]
     public required string DisplayName {get; set;}

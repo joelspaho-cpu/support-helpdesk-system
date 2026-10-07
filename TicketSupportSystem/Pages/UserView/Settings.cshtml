@@ -1,0 +1,91 @@
+@page
+@model TicketSupportSystem.Pages.UserView.SettingsModel
+ <form method="post" id="settingsForm">
+  <div class="mb-3">
+    <label asp-for="DisplayName" class="form-label">Display Name </label>
+    <input asp-for="DisplayName" />
+    <span asp-validation-for="DisplayName" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+    <p>Email: @Model.Email</p>
+    </div>
+    <div class="mb-3">
+    <label asp-for="NewPassword" class="form-label">Password </label>
+    <input asp-for="NewPassword" />
+    <span asp-validation-for="NewPassword" class="text-danger"></span>
+    </div>
+    <div class="mb-3">   
+    <label asp-for="ConfirmNewPassword" class="form-label">Confirm Password</label>
+    <input asp-for="ConfirmNewPassword" />
+    <span asp-validation-for="ConfirmNewPassword" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+    <label asp-for="Region" class="form-label">Region </label>
+    <select asp-for="Region" class="form-control">
+        <option value="">Select your region</option>
+        <option value="GB">United Kingdom</option>
+        <option value="AL">Albania</option>
+        <option value="IT">Italy</option></select>
+    <span asp-validation-for="Region" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+    <label asp-for="Language" class="form-label">Language </label>
+    <select asp-for="Language" class="form-control">
+        <option value="">Select your language</option>
+        <option value="EN">English</option>
+        <option value="SQ">Shqip</option>
+        <option value="IT">Italiano</option></select>
+    <span asp-validation-for="Language" class="text-danger"></span>
+    <input type="checkbox" asp-for="Has2Fa" class="form-check-input" />
+    <label asp-for="Has2Fa" class="form-check-label">Two factor authentication</label>
+    </div>
+     <div class="mb-3">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#confirmModal" id="saveButton">
+            Save changes
+        </button>
+    </div>
+
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmModalLabel">Enter your current password to save changes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label asp-for="CurrentPassword" class="form-label">Current password</label>
+                    <input asp-for="CurrentPassword" class="form-control" />
+                    <span asp-validation-for="CurrentPassword" class="text-danger"></span>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Confirm and save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+  </form>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $.validator.setDefaults({ onkeyup: false });
+    </script>
+    @if (ViewData.ModelState[nameof(Model.CurrentPassword)]?.Errors.Count > 0)
+    {
+        <script>
+            new bootstrap.Modal(document.getElementById('confirmModal')).show();
+        </script>
+    }
+    <script>
+    const form = document.getElementById('settingsForm');
+    const saveButton = document.getElementById('saveButton');
+    const snapshot = () => new URLSearchParams(new FormData(form)).toString();
+
+    const original = snapshot();
+    saveButton.disabled = true;
+
+    form.addEventListener('input', () => {
+        saveButton.disabled = snapshot() === original;
+    });
+    </script>
+}

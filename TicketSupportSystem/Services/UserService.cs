@@ -95,5 +95,32 @@ public class UserService : IUserService
         await _db.SaveChangesAsync();
         return user.UserID;
     }
+    public async Task<SettingsUpdateResult> ChangeSettingsAsync(int id, string? currentPassword, bool Has2Fa, string? DisplayName = null, string? Region = null, string? Language = null, string? newPassword = null)
+    {
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.UserID == id);
+        if (user == null) return SettingsUpdateResult.NotFound;
+
+        if (currentPassword == null) return SettingsUpdateResult.WrongPassword;
+        if (_hasher.Verify(currentPassword, user.PasswordHash) == HashCheckResult.Failed) return SettingsUpdateResult.WrongPassword;
+
+        user.DisplayName = DisplayName ?? user.DisplayName;
+        user.Has2fa = Has2Fa;
+        user.Region = Region ?? user.Region;
+        user.Language = Language ?? user.Language;
+        if (newPassword != null) user.PasswordHash = _hasher.Hash(newPassword);
+
+        if (_db.Entry(user).State == EntityState.Unchanged) return SettingsUpdateResult.NoChanges;
+
+        await _db.SaveChangesAsync();
+        return SettingsUpdateResult.Success;
+    }
+    public async Task<UserSettings?> GetSettingsAsync(int id)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.UserID == id);
+        if (user == null) return null;
+
+        return new UserSettings(user.Has2fa, user.DisplayName, user.Region, user.Language, user.Email);
+    }
 
 }

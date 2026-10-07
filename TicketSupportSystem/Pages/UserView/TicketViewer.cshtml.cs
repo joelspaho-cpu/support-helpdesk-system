@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authentication;
 using System.ComponentModel.DataAnnotations;
 using TicketSupportSystem.Models;
 using TicketSupportSystem.Extensions;
 using TicketSupportSystem.ViewModels;
 using TicketSupportSystem.Services;
+
 
 
 namespace TicketSupportSystem.Pages.UserView
@@ -57,10 +57,6 @@ namespace TicketSupportSystem.Pages.UserView
             if (!posted) { TempData["ErrorMessage"] = "Your response could not be submitted, please try again. If issue persists, try signing out and back in."; }
            
             return RedirectToPage("/UserView/TicketViewer", new { id });
-        }
-        public async Task<IActionResult> OnPostLogoutAsync()
-        {
-            return await this.SignOutUserAsync();
         }
     }
 }

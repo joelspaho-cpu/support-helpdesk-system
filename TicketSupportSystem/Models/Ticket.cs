@@ -25,5 +25,4 @@ public class Ticket
     public Staff? ReferredToEngineer { get; set; }
     public int? ReferredToEngineerID { get; set; } 
     public DateTime CreatedAt {get; set;}
-    
 }

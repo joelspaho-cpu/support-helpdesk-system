@@ -24,9 +24,5 @@ namespace TicketSupportSystem.Pages.UserView
             Tickets = TicketResults;
             return Page();
         }
-        public async Task<IActionResult> OnPostLogoutAsync()
-        {
-            return await this.SignOutUserAsync();
-        }
     }
 }

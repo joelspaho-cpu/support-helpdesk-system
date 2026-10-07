@@ -74,16 +74,13 @@ public class VerificationService : IVerificationService
         await _db.PendingRegistrations.Where(u => u.Id == id).ExecuteDeleteAsync(); // create and save user, delete prospect and return success
         return VerificationResult.Success;
     }
-    public async Task<bool> CanResendAsync(Guid id) // frontend method for registration
+    public async Task<ResendStatus> GetResendStatusAsync(Guid id)
     {
-        var prospect = await _db.PendingRegistrations.FirstOrDefaultAsync(u => u.Id == id);
-        if (prospect == null) return false;
+        var prospect = await _db.PendingRegistrations.FirstOrDefaultAsync(p => p.Id == id);
+        if (prospect == null) return ResendStatus.NotFound;
 
-        var record = await _db.EmailSends.FirstOrDefaultAsync(e => e.Email == prospect.Email);
-        if (record == null) return false;
-        bool windowActive = record.Expiry > DateTime.UtcNow;
-        return !windowActive || record.ResendCount < MaxResends;
-    }
+        return await IsSendAllowedAsync(prospect.Email) ? ResendStatus.Allowed : ResendStatus.Limited;
+    }   
     public async Task<ResendResult> ResendAsync(Guid id)
     {
         var prospect = await _db.PendingRegistrations.FirstOrDefaultAsync(u => u.Id == id);
@@ -128,6 +125,13 @@ public class VerificationService : IVerificationService
         
         return prospectUser.ID;
     }   
+    public async Task<ResendStatus> GetResendStatusLoginAsync(Guid id)
+    {
+        var prospect = await _db.PendingLogins.Include(u => u.User).FirstOrDefaultAsync(p => p.ID == id);
+        if (prospect == null || prospect.User == null) return ResendStatus.NotFound;
+
+        return await IsSendAllowedAsync(prospect.User.Email) ? ResendStatus.Allowed : ResendStatus.Limited;
+    }
     public async Task<ResendResult> ResendLoginAsync(Guid id)
     {
         var prospectLogin = await _db.PendingLogins.Include(p => p.User)
@@ -162,19 +166,7 @@ public class VerificationService : IVerificationService
         return new TwoFactorOutcome(VerificationResult.Success, prospectUser.UserID, prospectUser.IsPersistent);
     }
 
-    public async Task<bool> CanResendLoginAsync(Guid id) // frontend method for login
-    {
-        var prospectLoginEmail = await _db.PendingLogins
-                                                .Where(p => p.ID == id)
-                                                .Select(p => p.User!.Email)
-                                                .FirstOrDefaultAsync();
-        if (prospectLoginEmail == null) return false;
 
-        var record = await _db.EmailSends.FirstOrDefaultAsync(e => e.Email == prospectLoginEmail);
-        if (record == null) return false;
-        bool windowActive = record.Expiry > DateTime.UtcNow;
-        return !windowActive || record.ResendCount < MaxResends;
-    }
 
 // Universal
     private string IssueCode(ICodeChallenge pending)
@@ -185,6 +177,13 @@ public class VerificationService : IVerificationService
         pending.ExpiresAt = DateTime.UtcNow.AddMinutes(CodeLifetimeMinutes);
         pending.AttemptCount = 0;
         return code;
+    }
+    private async Task<bool> IsSendAllowedAsync(string email)
+    {
+        var record = await _db.EmailSends.FirstOrDefaultAsync(e => e.Email == email);
+        if (record == null) return true;
+
+        return record.Expiry <= DateTime.UtcNow || record.ResendCount < MaxResends;
     }
     private async Task<VerificationResult> CheckCodeAsync(ICodeChallenge pending, int enteredCode)
     {

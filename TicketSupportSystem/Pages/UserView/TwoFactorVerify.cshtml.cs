@@ -24,14 +24,20 @@ namespace TicketSupportSystem.Pages.UserView
 
         public async Task<IActionResult> OnGetAsync(Guid id)
         { 
-            CanResend = await _verify.CanResendLoginAsync(id);
+            var status = await _verify.GetResendStatusLoginAsync(id);
+            if (status == ResendStatus.NotFound)
+            {
+                TempData["ErrorMessage"] = "An error has occurred, please try logging in again";
+                return RedirectToPage("/UserView/Login");
+            }
+            CanResend = status == ResendStatus.Allowed;
             return Page();
         }
         public async Task<IActionResult> OnPostAsync(Guid id)
         {
+            CanResend = await _verify.GetResendStatusLoginAsync(id) == ResendStatus.Allowed;
             if (!ModelState.IsValid) return Page();
             var outcome = await _verify.TwoFactorVerifyAsync(id, EnteredCode);
-            CanResend = await _verify.CanResendLoginAsync(id); 
             switch (outcome.Result)
             {
                 case VerificationResult.Success:

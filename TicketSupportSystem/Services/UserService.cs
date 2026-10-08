@@ -16,33 +16,34 @@ public class UserService : IUserService
       Welcome! Your account has been created.
     </p>
     """;
-    public int MaxLoginAttempts = 5;
+    public int MaxLoginAttempts = 7;
     public UserService(AppDbContext db, IHashingService hash, IEmailService email)
     {
         _db = db;
         _hasher = hash;
         _email = email;
     }
-    public async Task<User?> AuthenticateAsync(string email, string password)
+    public async Task<LoginOutcome> AuthenticateAsync(string email, string password)
     {
         string formattedEmail = email.Trim().ToLowerInvariant();
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == formattedEmail);
-        if (user == null) { _hasher.DummyHashVerify(password); return null; } // prevention against timing
-        if (user.Status != UserStatus.Active) return null;
-        if (user.LoginAttempts > MaxLoginAttempts) return null;
+        if (user == null) { _hasher.DummyHashVerify(password);  return new LoginOutcome(LoginResult.InvalidCredentials); } // prevention against timing
+        if (user.Status != UserStatus.Active) return new LoginOutcome(LoginResult.Locked);
         HashCheckResult verifyPassword = _hasher.Verify(password, user.PasswordHash);
         if (verifyPassword == HashCheckResult.Failed) {
             user.LoginAttempts++;
-            await _db.SaveChangesAsync();
-            return null;
-        }
-        if (verifyPassword == HashCheckResult.SuccessRehashNeeded)
-            {
-                user.PasswordHash = _hasher.Hash(password);
+            if (user.LoginAttempts >= MaxLoginAttempts) {
+                user.Status = UserStatus.Locked;
                 await _db.SaveChangesAsync();
-            }
+                return new LoginOutcome(LoginResult.Locked);}
+            await _db.SaveChangesAsync();    
+            return new LoginOutcome(LoginResult.InvalidCredentials);
+        }
+        if (verifyPassword == HashCheckResult.SuccessRehashNeeded) user.PasswordHash = _hasher.Hash(password);
 
-        return user;
+        user.LoginAttempts = 0;
+        await _db.SaveChangesAsync();
+        return new LoginOutcome(LoginResult.Success, user);
     }
     public async Task<int?> RegisterAsync(string displayName, string email, string password, string region, string language, bool has2fa)
     {

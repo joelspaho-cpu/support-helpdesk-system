@@ -35,17 +35,26 @@ namespace TicketSupportSystem.Pages.UserView
         {
             if (!ModelState.IsValid) return Page();
             if (User.Identity?.IsAuthenticated == true) return RedirectToPage("/UserView/Dashboard"); 
-            var user = await _user.AuthenticateAsync(Email, Password);
-            if (user == null) {
-                ModelState.AddModelError(nameof(Email), "Invalid email or password.");
-                return Page(); }
-            if (user.Has2fa) {
-                var prospect = await _verify.StartLoginAsync(user.UserID, RemainSignedIn);
-                if (prospect == null) { ModelState.AddModelError(nameof(Email), "You cannot sign in at this time, try again later or register if you haven't already"); return Page(); }
-                return RedirectToPage("/UserView/TwoFactorVerify", new { id = prospect.Value });}
-            var principal = _user.ConstructPrincipal(user.UserID);
-            await HttpContext.SignInAsync("UserScheme", principal, new AuthenticationProperties { IsPersistent = RemainSignedIn });
-            return RedirectToPage("/UserView/Dashboard");
+            var outcome = await _user.AuthenticateAsync(Email, Password);
+            switch (outcome.Result)
+            {
+                case LoginResult.InvalidCredentials:
+                    ModelState.AddModelError(nameof(Email), "Invalid email or password");
+                    return Page();
+                case LoginResult.Locked:
+                    ModelState.AddModelError(nameof(Email), "Your account is locked for security purposes, please reset your password to regain access");
+                    return Page();
+                case LoginResult.Success:
+                    if (outcome.User!.Has2fa) {
+                    var prospect = await _verify.StartLoginAsync(outcome.User.UserID, RemainSignedIn);
+                    if (prospect == null) { ModelState.AddModelError(nameof(Email), "You cannot sign in at this time, try again later or register if you haven't already"); return Page(); }
+                    return RedirectToPage("/UserView/TwoFactorVerify", new { id = prospect.Value });}
+                    var principal = _user.ConstructPrincipal(outcome.User.UserID);
+                    await HttpContext.SignInAsync("UserScheme", principal, new AuthenticationProperties { IsPersistent = RemainSignedIn });
+                    return RedirectToPage("/UserView/Dashboard");
+            }
+            ModelState.AddModelError(nameof(Email), "Please attempt to login again");
+            return Page();
             }
     }
 }

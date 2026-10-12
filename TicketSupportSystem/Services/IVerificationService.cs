@@ -11,5 +11,8 @@ public interface IVerificationService
     Task<Guid?> StartLoginAsync(int userId, bool isPersistent);
     Task<TwoFactorOutcome> TwoFactorVerifyAsync(Guid id, int enteredCode);
     Task<ResendStatus> GetResendStatusLoginAsync(Guid id);
-    Task<ResendResult>ResendLoginAsync(Guid id);
+    Task<ResendResult> ResendLoginAsync(Guid id);
+    Task<bool> ValidateForgotPasswordLinkAsync(string code);
+    Task<bool> SendForgotPasswordLinkAsync(string email);
+    Task<bool> CompleteResetAsync(string token, string newPassword);
 }

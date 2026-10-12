@@ -26,8 +26,9 @@ public class VerificationServiceTests : IDisposable
             CodeSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
         }));
         var userService = new UserService(_db, hasher, _testemail);
+        var appOptions = Options.Create(new AppOptions { BaseUrl = "https://test.local" });
 
-        _sut = new VerificationService(_db, hasher, _testemail, codeHasher, userService);
+        _sut = new VerificationService(appOptions, _db, hasher, _testemail, codeHasher, userService);
     }
     [Fact]
     public async Task Verify_User_And_Create_Account_with_correct_code()

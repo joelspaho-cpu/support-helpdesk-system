@@ -11,4 +11,5 @@ public interface IUserService
     ClaimsPrincipal ConstructPrincipal(int UserID);
     Task<UserSettings?> GetSettingsAsync(int id);
     Task<SettingsUpdateResult> ChangeSettingsAsync(int id, string? currentPassword, bool Has2Fa, string? DisplayName = null, string? Region = null, string? Language = null, string? newPassword = null);
+    Task<bool> ResetPasswordAsync(int userId, string newPassword);
 }

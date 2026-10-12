@@ -9,4 +9,5 @@ public class EmailSend
     public required string Email {get; set;}
     public DateTime Expiry {get; set;}
     public int ResendCount {get; set;}
+    public SendPurpose Purpose { get; set; }
 }

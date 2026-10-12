@@ -110,6 +110,7 @@ public class UserService : IUserService
         user.Region = Region ?? user.Region;
         user.Language = Language ?? user.Language;
         if (newPassword != null) user.PasswordHash = _hasher.Hash(newPassword);
+        
 
         if (_db.Entry(user).State == EntityState.Unchanged) return SettingsUpdateResult.NoChanges;
 
@@ -123,5 +124,16 @@ public class UserService : IUserService
 
         return new UserSettings(user.Has2fa, user.DisplayName, user.Region, user.Language, user.Email);
     }
+    public async Task<bool> ResetPasswordAsync(int userId, string newPassword)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.UserID == userId);
+        if (user == null) return false;
 
+        user.PasswordHash = _hasher.Hash(newPassword);
+        user.LoginAttempts = 0;
+        user.Status = UserStatus.Active;
+        
+        await _db.SaveChangesAsync();
+        return true;
+    }
 }

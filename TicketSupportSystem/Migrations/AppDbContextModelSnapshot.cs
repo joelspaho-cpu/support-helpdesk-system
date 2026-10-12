@@ -38,12 +38,15 @@ namespace TicketSupportSystem.Migrations
                     b.Property<DateTime>("Expiry")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("Purpose")
+                        .HasColumnType("integer");
+
                     b.Property<int>("ResendCount")
                         .HasColumnType("integer");
 
                     b.HasKey("EmailSendId");
 
-                    b.HasIndex("Email")
+                    b.HasIndex("Email", "Purpose")
                         .IsUnique();
 
                     b.ToTable("EmailSends");
@@ -188,6 +191,37 @@ namespace TicketSupportSystem.Migrations
                         .IsUnique();
 
                     b.ToTable("PendingRegistrations");
+                });
+
+            modelBuilder.Entity("TicketSupportSystem.Models.PendingReset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("UserID")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserID")
+                        .IsUnique();
+
+                    b.ToTable("PendingResets");
                 });
 
             modelBuilder.Entity("TicketSupportSystem.Models.Staff", b =>
@@ -375,6 +409,17 @@ namespace TicketSupportSystem.Migrations
                 });
 
             modelBuilder.Entity("TicketSupportSystem.Models.PendingLogin", b =>
+                {
+                    b.HasOne("TicketSupportSystem.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TicketSupportSystem.Models.PendingReset", b =>
                 {
                     b.HasOne("TicketSupportSystem.Models.User", "User")
                         .WithMany()

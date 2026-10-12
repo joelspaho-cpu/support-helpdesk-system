@@ -32,6 +32,7 @@ builder.Services.AddRateLimiter(options =>
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
 });
+builder.Services.Configure<AppOptions>(builder.Configuration.GetSection("App"));
 
 
 // Persist Data Protection keys (used to sign auth cookies) when a path is configured,

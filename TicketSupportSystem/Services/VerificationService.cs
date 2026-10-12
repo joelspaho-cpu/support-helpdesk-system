@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using TicketSupportSystem.Data;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace TicketSupportSystem.Services;
 
@@ -13,13 +14,16 @@ public class VerificationService : IVerificationService
     private readonly IEmailService _email;
     private readonly ICodeHashingService _codehash;
     private readonly IUserService _user;
+    private readonly string _baseurl;
     public int MaxAttempts { get; set; } = 7;
     public int MaxResends { get; set; } = 7;
     public int CodeLifetimeMinutes { get; set; } = 10;
     public int ResendWindowMinutes { get; set; } = 60;
+    public int ResetLinkLifetimeMinutes { get; set; } = 30;
 
-    public VerificationService(AppDbContext db, IHashingService hash, IEmailService email, ICodeHashingService codehash, IUserService user)
+    public VerificationService(IOptions<AppOptions> appOptions, AppDbContext db, IHashingService hash, IEmailService email, ICodeHashingService codehash, IUserService user)
     {
+        _baseurl = appOptions.Value.BaseUrl;
         _db = db;
         _hash = hash;
         _email = email;
@@ -34,7 +38,7 @@ public class VerificationService : IVerificationService
         bool existsInUsers = await _db.Users.AnyAsync(u => u.Email == normalisedEmail); // check if currently exists return if it does
         if (existsInUsers) return null; 
 
-        if (!await TryRecordSendAsync(normalisedEmail)) return null; // go through check to ensure user isnt ratelimited, if they arent add the email to emailsend if email doesnt exist add to emailsend, increment count and return true, set counter to 1 return true if it exists, false if they are either ratelimited by count or date
+        if (!await TryRecordSendAsync(normalisedEmail, SendPurpose.Verification)) return null; // go through check to ensure user isnt ratelimited, if they arent add the email to emailsend if email doesnt exist add to emailsend, increment count and return true, set counter to 1 return true if it exists, false if they are either ratelimited by count or date
 
         await _db.PendingRegistrations.Where(p => p.Email == normalisedEmail).ExecuteDeleteAsync(); // if we pass the above and the email exists, we delete the previous pendingregistration since we are attempting new registration
 
@@ -79,14 +83,14 @@ public class VerificationService : IVerificationService
         var prospect = await _db.PendingRegistrations.FirstOrDefaultAsync(p => p.Id == id);
         if (prospect == null) return ResendStatus.NotFound;
 
-        return await IsSendAllowedAsync(prospect.Email) ? ResendStatus.Allowed : ResendStatus.Limited;
+        return await IsSendAllowedAsync(prospect.Email, SendPurpose.Verification) ? ResendStatus.Allowed : ResendStatus.Limited;
     }   
     public async Task<ResendResult> ResendAsync(Guid id)
     {
         var prospect = await _db.PendingRegistrations.FirstOrDefaultAsync(u => u.Id == id);
         if (prospect == null) return ResendResult.NotFound; // prevent bad state
 
-        if (!await TryRecordSendAsync(prospect.Email)) return ResendResult.TooManyResends; // ratelimit on email sends if count is higher than what we allow
+        if (!await TryRecordSendAsync(prospect.Email, SendPurpose.Verification)) return ResendResult.TooManyResends; // ratelimit on email sends if count is higher than what we allow
 
         var code = IssueCode(prospect);
         await _db.SaveChangesAsync();
@@ -106,7 +110,7 @@ public class VerificationService : IVerificationService
         await _db.PendingLogins.Where(p => p.UserID == userId).ExecuteDeleteAsync();
         
         var normalisedEmail = user.Email.Trim().ToLowerInvariant();
-        if (!await TryRecordSendAsync(normalisedEmail)) return null;
+        if (!await TryRecordSendAsync(normalisedEmail, SendPurpose.Verification)) return null;
         
         PendingLogin prospectUser = new PendingLogin{
             ID = Guid.NewGuid(),
@@ -130,7 +134,7 @@ public class VerificationService : IVerificationService
         var prospect = await _db.PendingLogins.Include(u => u.User).FirstOrDefaultAsync(p => p.ID == id);
         if (prospect == null || prospect.User == null) return ResendStatus.NotFound;
 
-        return await IsSendAllowedAsync(prospect.User.Email) ? ResendStatus.Allowed : ResendStatus.Limited;
+        return await IsSendAllowedAsync(prospect.User.Email, SendPurpose.Verification) ? ResendStatus.Allowed : ResendStatus.Limited;
     }
     public async Task<ResendResult> ResendLoginAsync(Guid id)
     {
@@ -138,7 +142,7 @@ public class VerificationService : IVerificationService
                                               .FirstOrDefaultAsync(p => p.ID == id);
         if (prospectLogin == null || prospectLogin.User == null) return ResendResult.NotFound; // prevent bad state
 
-        if (!await TryRecordSendAsync(prospectLogin.User.Email)) return ResendResult.TooManyResends; // ratelimit on email sends if count is higher than what we allow
+        if (!await TryRecordSendAsync(prospectLogin.User.Email, SendPurpose.Verification)) return ResendResult.TooManyResends; // ratelimit on email sends if count is higher than what we allow
 
         var code = IssueCode(prospectLogin);
         await _db.SaveChangesAsync();
@@ -165,10 +169,82 @@ public class VerificationService : IVerificationService
         await _db.PendingLogins.Where(u => u.ID == id).ExecuteDeleteAsync();
         return new TwoFactorOutcome(VerificationResult.Success, prospectUser.UserID, prospectUser.IsPersistent);
     }
+    public async Task<bool> SendForgotPasswordLinkAsync(string email)
+    {
+        string formattedEmail = email.Trim().ToLowerInvariant();
+        
+        var result = await TryRecordSendAsync(formattedEmail, SendPurpose.Reset);
+        await _db.SaveChangesAsync();
+        if (result == false) return false;
 
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == formattedEmail);
+        if (user == null) return true;
+        
+        await _db.PendingResets.Where(p => p.UserID == user.UserID).ExecuteDeleteAsync();
+
+        var token = GenerateToken();
+        await _db.PendingResets.AddAsync(new PendingReset{
+            UserID = user.UserID,
+            User = user,
+            TokenHash = _codehash.Hash(token),
+            ExpiresAt = DateTime.UtcNow.AddMinutes(ResetLinkLifetimeMinutes),
+            CreatedAt = DateTime.UtcNow
+            }
+        );
+        await _db.SaveChangesAsync();
+        await _email.SendAsync(
+            user.Email,
+            $"Your Password Reset link",  
+            BuildResetPasswordEmail(token));
+        return true;
+    }
+    public async Task<bool> ValidateForgotPasswordLinkAsync(string code)
+    {
+        var incomingTokenHash = _codehash.Hash(code);
+        var record = await CheckValidResetAsync(incomingTokenHash);
+        if (record == null) return false;
+
+        return true;
+    }
+    public async Task<bool> CompleteResetAsync(string token, string newPassword)
+    {
+        var hashedToken = _codehash.Hash(token);
+        var record = await CheckValidResetAsync(hashedToken);
+        if (record == null) return false;
+
+        var result = await _user.ResetPasswordAsync(record.UserID, newPassword);
+        if (!result) return false;
+
+        await _db.PendingResets.Where(t => t.TokenHash == hashedToken).ExecuteDeleteAsync();
+        
+        await _email.SendAsync(
+            record.User!.Email,
+            $"Your Password Reset link",  
+            BuildPasswordChangedEmail());
+
+        return true;
+    }
 
 
 // Universal
+    private string GenerateToken()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        var token = WebEncoders.Base64UrlEncode(bytes);
+
+        return token;
+    }
+    private async Task<PendingReset?> CheckValidResetAsync(string tokenHash)
+    {
+        var result = await _db.PendingResets.Include(p => p.User)
+                                            .FirstOrDefaultAsync(t => t.TokenHash == tokenHash);
+        if (result == null) return null;
+
+        if (result.ExpiresAt <= DateTime.UtcNow) return null;
+
+        return result;
+    }
+
     private string IssueCode(ICodeChallenge pending)
     {
         string code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
@@ -178,9 +254,9 @@ public class VerificationService : IVerificationService
         pending.AttemptCount = 0;
         return code;
     }
-    private async Task<bool> IsSendAllowedAsync(string email)
+    private async Task<bool> IsSendAllowedAsync(string email, SendPurpose purpose)
     {
-        var record = await _db.EmailSends.FirstOrDefaultAsync(e => e.Email == email);
+        var record = await _db.EmailSends.FirstOrDefaultAsync(e => e.Email == email && e.Purpose == purpose);
         if (record == null) return true;
 
         return record.Expiry <= DateTime.UtcNow || record.ResendCount < MaxResends;
@@ -195,9 +271,9 @@ public class VerificationService : IVerificationService
 
         return VerificationResult.Success;
     }
-    private async Task<bool> TryRecordSendAsync(string email)
+    private async Task<bool> TryRecordSendAsync(string email, SendPurpose purpose)
     {
-        var record = await _db.EmailSends.FirstOrDefaultAsync(e => e.Email == email);
+        var record = await _db.EmailSends.FirstOrDefaultAsync(e => e.Email == email && e.Purpose == purpose);
 
             if (record == null) // if email doesnt exist, add to emailsend, return true
             {
@@ -205,7 +281,8 @@ public class VerificationService : IVerificationService
                     {
                         Email = email,
                         ResendCount = 1,
-                        Expiry = DateTime.UtcNow.AddMinutes(ResendWindowMinutes)
+                        Expiry = DateTime.UtcNow.AddMinutes(ResendWindowMinutes),
+                        Purpose = purpose
                     });
             return true;
             }
@@ -236,4 +313,32 @@ public class VerificationService : IVerificationService
             <p style='color: #999999; font-size: 12px; text-align: center;'>If you didn't request this, you can safely ignore this email.</p>
         </div>"; // 2fa email template
     }
+    private string BuildResetPasswordEmail(string token)
+    {
+        return $@"
+        <div style='font-family: Arial, sans-serif; max-width: 450px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;'>
+            <h2 style='color: #333333; text-align: center;'>Your Password Reset Link</h2>
+            <p style='color: #666666; font-size: 15px; text-align: center;'>Use the link below to reset your password. Valid for {ResetLinkLifetimeMinutes} minutes.</p>
+            <p style='text-align: center; margin: 20px 0;'><a href=""{_baseurl}/UserView/ResetPassword?token={token}"">Click here to reset your password</a></p>
+            <p style='color: #999999; font-size: 12px; text-align: center;'>If you didn't request this, you can safely ignore this email.</p>
+        </div>"; // forgot password email template
+    }
+    private string BuildPasswordChangedEmail()
+{
+    return $@"
+    <div style='font-family: Arial, sans-serif; max-width: 450px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;'>
+        <h2 style='color: #333333; text-align: center;'>Your password was changed</h2>
+        <p style='color: #666666; font-size: 15px; text-align: center;'>
+            The password for your account was changed on {DateTime.UtcNow:dd MMM yyyy 'at' HH:mm} (UTC).
+        </p>
+        <p style='color: #666666; font-size: 15px; text-align: center;'>
+            If this was you, there's nothing else you need to do.
+        </p>
+        <p style='color: #666666; font-size: 15px; text-align: center;'>
+            If you didn't make this change, someone may have access to your email.
+            <a href=""{_baseurl}/UserView/ForgotPassword"">Reset your password now</a> and secure your email account.
+        </p>
+    </div>"; // password changed notification template
+}
+
 }

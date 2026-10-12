@@ -26,7 +26,9 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("auth", context =>
-        RateLimitPartition.GetFixedWindowLimiter(
+    HttpMethods.IsGet(context.Request.Method)
+        ? RateLimitPartition.GetNoLimiter("get")
+        : RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
 });

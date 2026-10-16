@@ -21,7 +21,7 @@ public class VerificationServiceTests : IDisposable
     {
         _db = _testdb.CreateContext();
         var hasher = new HashingService();
-         var codeHasher = new CodeHashingService(Options.Create(new CodeHashingServiceOptions
+        var codeHasher = new CodeHashingService(Options.Create(new CodeHashingServiceOptions
         {
             CodeSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
         }));

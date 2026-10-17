@@ -16,7 +16,7 @@ Sections below marked *(second pass)* describe the target design, not what is bu
 | Role | Created by | Scope |
 |------|------------|--------|
 | Admin | (seeded) | Create Manager accounts, overview the entire system, turn off/on services on demand, review logs, performance monitoring |
-| Manager | Admin | Create Staff Accounts, reassign tickets, delete staff accounts, change staff role - not a customer facing role|
+| Manager | Admin | Create Staff Accounts, reassign tickets, deactivate staff accounts, change staff role - not a customer facing role|
 | Advisor L1 | Manager | Respond to tickets, escalate to another level, leave internal notes, review internal articles, access templates, review internal notes, change work statuses, sign out, sign in, review active tickets, change the logging of a case|
 | Advisor L2 | Manager | everything in L1 + escalate to engineering + certain tickets that are otherwise not handled by L1 |
 | Engineer | Manager | Review incoming escalations, respond - not a customer facing role|
@@ -27,6 +27,10 @@ How staff accounts are created :
 => Managers create staff accounts, they only specify the details such as their email (which should be a corporate email but for demo purposes this is TBD), full legal name, job role and the tools to customize their experience such as a signature or the interface
 
 The first Manager cannot be created by a Manager, so it is seeded at startup from configuration. The seeder is idempotent and also provides demo advisors and sample tickets.
+
+In V1 the Manager UI does not exist yet, so the seeder is the only way staff accounts are created.
+
+Staff accounts are deactivated, never deleted *(second pass)*. A staff member's messages, assignments and history rows all reference their account, so deleting it would either be blocked by the foreign keys or erase the audit trail.
 
 ## Availability *(second pass)*
 When first logged in, the status sits on Idle and has to be switched to a relevant status straight away depending on advisor scheduling.
@@ -51,7 +55,7 @@ A database query looks at all available advisors and renders them by whoever has
 In V1 there is no assignment engine. Tickets at an advisor's level appear unclaimed and an advisor claims one manually. Auto-assignment later sets the same column, so nothing built now is thrown away.
 
 ## Queue and deadlines *(second pass)*
-Mission Critical - response within business day or the start of the next business day
+Mission Critical - response within 4 hours
 High - response in 1 business day
 Standard - response in 2 business days
 Low - response in 3 days
@@ -105,3 +109,4 @@ Recorded in V1. Replies and internal notes are already auditable because each is
 - Staff email: corporate domain vs free addresses for the demo
 - Whether SLA deadlines should count business days only, and how holidays are handled
 - Whether L2 to L1 de-escalation is modelled at all or handled by a Manager reassigning
+- Ticket history actor: an explicit `ActorType` column (User/Staff/System, numbered from 1 so a forgotten value fails the check constraint) vs two nullable foreign keys where both null means System. Must be decided before the history table is built.

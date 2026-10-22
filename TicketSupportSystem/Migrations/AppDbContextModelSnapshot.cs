@@ -22,6 +22,92 @@ namespace TicketSupportSystem.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("TicketSupportSystem.Models.Category", b =>
+                {
+                    b.Property<int>("CategoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("CategoryID"));
+
+                    b.Property<int>("DefaultPriority")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("HandledByLevel")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.HasKey("CategoryID");
+
+                    b.ToTable("Categories");
+
+                    b.HasData(
+                        new
+                        {
+                            CategoryID = 1,
+                            DefaultPriority = 1,
+                            HandledByLevel = 0,
+                            IsEnabled = true,
+                            Name = "General Question",
+                            SortOrder = 1
+                        },
+                        new
+                        {
+                            CategoryID = 2,
+                            DefaultPriority = 1,
+                            HandledByLevel = 0,
+                            IsEnabled = true,
+                            Name = "Billing",
+                            SortOrder = 2
+                        },
+                        new
+                        {
+                            CategoryID = 3,
+                            DefaultPriority = 1,
+                            HandledByLevel = 1,
+                            IsEnabled = true,
+                            Name = "Account",
+                            SortOrder = 3
+                        },
+                        new
+                        {
+                            CategoryID = 4,
+                            DefaultPriority = 1,
+                            HandledByLevel = 1,
+                            IsEnabled = true,
+                            Name = "Product",
+                            SortOrder = 4
+                        },
+                        new
+                        {
+                            CategoryID = 5,
+                            DefaultPriority = 0,
+                            HandledByLevel = 0,
+                            IsEnabled = true,
+                            Name = "Feedback / Complaint",
+                            SortOrder = 6
+                        },
+                        new
+                        {
+                            CategoryID = 6,
+                            DefaultPriority = 1,
+                            HandledByLevel = 0,
+                            IsEnabled = true,
+                            Name = "Sales",
+                            SortOrder = 5
+                        });
+                });
+
             modelBuilder.Entity("TicketSupportSystem.Models.EmailSend", b =>
                 {
                     b.Property<int>("EmailSendId")
@@ -279,6 +365,9 @@ namespace TicketSupportSystem.Migrations
                     b.Property<int?>("AssignedToStaffID")
                         .HasColumnType("integer");
 
+                    b.Property<int>("CategoryID")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -324,6 +413,8 @@ namespace TicketSupportSystem.Migrations
                     b.HasKey("TicketID");
 
                     b.HasIndex("AssignedToStaffID");
+
+                    b.HasIndex("CategoryID");
 
                     b.HasIndex("ReferredToEngineerID");
 
@@ -436,6 +527,12 @@ namespace TicketSupportSystem.Migrations
                         .WithMany()
                         .HasForeignKey("AssignedToStaffID");
 
+                    b.HasOne("TicketSupportSystem.Models.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("TicketSupportSystem.Models.Staff", "ReferredToEngineer")
                         .WithMany()
                         .HasForeignKey("ReferredToEngineerID");
@@ -447,6 +544,8 @@ namespace TicketSupportSystem.Migrations
                         .IsRequired();
 
                     b.Navigation("AssignedToStaff");
+
+                    b.Navigation("Category");
 
                     b.Navigation("ReferredToEngineer");
 

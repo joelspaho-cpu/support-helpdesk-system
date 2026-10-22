@@ -25,6 +25,21 @@ public class AppDbContext : DbContext
             modelBuilder.Entity<PendingLogin>().HasIndex(e => e.UserID).IsUnique();
             modelBuilder.Entity<PendingReset>().HasIndex(p => p.TokenHash).IsUnique();
             modelBuilder.Entity<PendingReset>().HasIndex(p => p.UserID).IsUnique();
+            modelBuilder.Entity<Category>().HasData(
+                    new Category { CategoryID = 1, Name = "General Question", HandledByLevel = Level.Level1,
+                                DefaultPriority = TicketPriority.Standard, IsEnabled = true, SortOrder = 1 },
+                    new Category { CategoryID = 2, Name = "Billing", HandledByLevel = Level.Level1,
+                                DefaultPriority = TicketPriority.Standard, IsEnabled = true, SortOrder = 2 },
+                    new Category { CategoryID = 3, Name = "Account", HandledByLevel = Level.Level2,
+                                DefaultPriority = TicketPriority.Standard, IsEnabled = true, SortOrder = 3 },
+                    new Category { CategoryID = 4, Name = "Product", HandledByLevel = Level.Level2,
+                                DefaultPriority = TicketPriority.Standard, IsEnabled = true, SortOrder = 4 },
+                    new Category { CategoryID = 5, Name = "Feedback / Complaint", HandledByLevel = Level.Level1,
+                                DefaultPriority = TicketPriority.Low, IsEnabled = true, SortOrder = 6 },
+                    new Category { CategoryID = 6, Name = "Sales", HandledByLevel = Level.Level1,
+                                DefaultPriority = TicketPriority.Standard, IsEnabled = true, SortOrder = 5 });
+            modelBuilder.Entity<Ticket>().HasOne(t => t.Category).WithMany().HasForeignKey(t => t.CategoryID).OnDelete(DeleteBehavior.Restrict);
+;
     }
     public DbSet<User> Users {get; set;}
     public DbSet<Ticket> Tickets {get; set;}
@@ -34,4 +49,5 @@ public class AppDbContext : DbContext
     public DbSet<EmailSend> EmailSends {get; set;}
     public DbSet<PendingLogin> PendingLogins {get; set;}
     public DbSet<PendingReset> PendingResets {get; set;}
+    public DbSet<Category> Categories {get; set;}
 }

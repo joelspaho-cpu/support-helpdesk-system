@@ -18,6 +18,8 @@ public class Ticket
     public TicketStatus Status {get; set;}
     [Required]
     public TicketQuery Query {get; set;}
+    public int CategoryID {get; set;}
+    public Category? Category {get; set;}
     public int? ProductID {get; set;}
     [Required, MaxLength(45)]
     public required string IPAddress {get; set;}

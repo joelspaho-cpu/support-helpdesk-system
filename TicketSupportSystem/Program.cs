@@ -22,6 +22,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.Configure<CodeHashingServiceOptions>(builder.Configuration.GetSection("Verification"));
 builder.Services.AddScoped<ICodeHashingService, CodeHashingService>();
 builder.Services.AddScoped<IVerificationService, VerificationService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

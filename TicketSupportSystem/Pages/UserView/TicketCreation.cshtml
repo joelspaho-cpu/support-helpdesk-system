@@ -7,11 +7,11 @@
     <span asp-validation-for="Subject" class="text-danger"></span>
     </div>
     <div class="mb-3">
-    <label asp-for="Query" class="form-label">What are you enquiring about? </label>
-    <select asp-for="Query" asp-items="Html.GetEnumSelectList<Models.TicketQuery>()" class="form-control">
-    <option value="">-- Select your query --</option>
+    <label asp-for="CategoryID" class="form-label">What are you enquiring about? </label>
+    <select asp-for="CategoryID" asp-items="Model.Categories" class="form-control">
+    <option value="">-- Select a category --</option>
     </select>
-    <span asp-validation-for="Query" class="text-danger"></span>
+    <span asp-validation-for="CategoryID" class="text-danger"></span>
     </div>
     <div class="mb-3">
     <label asp-for="Description" class="form-label">Description </label>

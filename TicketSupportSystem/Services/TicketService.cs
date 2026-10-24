@@ -8,9 +8,11 @@ namespace TicketSupportSystem.Services;
 public class TicketService : ITicketService
 {
     private readonly AppDbContext _db;
-    public TicketService(AppDbContext db)
+    private readonly ICategoryService _c;
+    public TicketService(AppDbContext db, ICategoryService c)
     {
         _db = db;
+        _c = c;
     }
     public async Task<Ticket?> GetTicketForUserAsync(int ticketId, int userId)
     {
@@ -24,28 +26,21 @@ public class TicketService : ITicketService
             .Select(u => new TicketSummary(u.TicketID, u.Subject, u.Status, u.CreatedAt, u.UpdatedAt ?? u.CreatedAt))
             .ToListAsync();
     }
-    public async Task<int> CreateTicketAsync(int userId, string subject, string description, TicketQuery query, string ipAddress)
+    public async Task<int?> CreateTicketAsync(int userId, string subject, string description, int category, string ipAddress)
     {   
-        var level = query switch
-        {
-            TicketQuery.GeneralQuestion => Level.Level1,
-            TicketQuery.Billing => Level.Level1,
-            TicketQuery.Account => Level.Level2,
-            TicketQuery.Product => Level.Level2,
-            TicketQuery.FeedbackComplaint => Level.Level2,
-            TicketQuery.Sales => Level.Level1,
-            _ => throw new ArgumentOutOfRangeException(nameof(query))
-        };
+        var result = await _c.GetCategoryAsync(category);
+        if (result == null) return null;
         Ticket ticket = new Ticket
         {
             UserID = userId,
             Subject = subject,
             Description = description,
-            Query = query,
+            CategoryID = result.CategoryID,
             Status = TicketStatus.Open,
-            Level = level, 
+            Level = result.HandledByLevel, 
             IPAddress = ipAddress,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            Priority = result.DefaultPriority
         };
         _db.Tickets.Add(ticket);
         await _db.SaveChangesAsync();

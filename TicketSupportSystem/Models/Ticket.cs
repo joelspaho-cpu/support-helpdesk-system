@@ -16,8 +16,6 @@ public class Ticket
     [Required, MaxLength(5000)]
     public required string Description {get; set;}
     public TicketStatus Status {get; set;}
-    [Required]
-    public TicketQuery Query {get; set;}
     public int CategoryID {get; set;}
     public Category? Category {get; set;}
     public int? ProductID {get; set;}

@@ -390,9 +390,6 @@ namespace TicketSupportSystem.Migrations
                     b.Property<int?>("ProductID")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Query")
-                        .HasColumnType("integer");
-
                     b.Property<int?>("ReferredToEngineerID")
                         .HasColumnType("integer");
 

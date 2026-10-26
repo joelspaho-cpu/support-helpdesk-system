@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore TicketSupportSystem.slnx
+      - run: dotnet build TicketSupportSystem.slnx --no-restore -c Release
+      - run: dotnet test TicketSupportSystem.slnx --no-build -c Release

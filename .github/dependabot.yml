@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directories: ["/TicketSupportSystem", "/TicketSupportSystem.Tests"]
+    schedule:
+      interval: "weekly"
+    groups:
+      ef-core:
+        patterns: ["Microsoft.EntityFrameworkCore*", "Npgsql.EntityFrameworkCore*"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

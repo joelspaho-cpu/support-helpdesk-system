@@ -23,10 +23,14 @@ Sections below marked *(second pass)* describe the target design, not what is bu
 
 L1 and L2 are separate tiers to the outside, but internally they are one `Advisor` role carrying a `Level`, since the distinction is scope rather than job function.
 
+Staff accounts use ASP.NET Core Identity. Roles are stored in Identity's role tables, and `Level` stays a column on the staff account. Every staff member holds exactly one role, and only Advisors carry a `Level`. The database cannot enforce either rule once roles live in a separate table, so both are enforced by a single role-change method that every assignment goes through. That method also rotates the security stamp, so the old cookie stops working. Role names are referenced through constants rather than string literals.
+
+Pages are protected by policies named after what they allow (for example `CanEscalateToEngineering`) rather than by role names. In V1 each policy checks role and level. When custom roles and permissions arrive, only the policy definitions change, not the pages.
+
 How staff accounts are created :
 => Managers create staff accounts, they only specify the details such as their email (which should be a corporate email but for demo purposes this is TBD), full legal name, job role and the tools to customize their experience such as a signature or the interface
 
-The first Manager cannot be created by a Manager, so it is seeded at startup from configuration. The seeder is idempotent and also provides demo advisors and sample tickets.
+The first Manager cannot be created by a Manager, so it is seeded at startup from configuration, along with the roles. The seeder is idempotent and also provides demo advisors and sample tickets.
 
 In V1 the Manager UI does not exist yet, so the seeder is the only way staff accounts are created.
 
@@ -97,6 +101,8 @@ Every action is recorded: when a reply is posted and by who, who escalated where
 
 Recorded in V1. Replies and internal notes are already auditable because each is its own row, but escalations, claims, status and priority changes mutate the ticket row and would otherwise leave no trace. Writes live inside the service methods alongside the change itself, so an action cannot be performed without being recorded. Showing the history in the UI is second pass.
 
+Each row records its actor with an explicit `ActorType` (User, Staff or System, numbered from 1 so a forgotten value fails the check constraint) alongside nullable foreign keys to the user and the staff member. A check constraint ties them together: User rows carry only a user ID, Staff rows only a staff ID, and System rows neither.
+
 ## Decisions and alternatives
 - Deadline based assignment is better but other alternatives featured a point based system which would have been difficult to adjust and prioritizing things based purely off of priority which wouldnt be good as less severe tickets sit waiting forever so the obvious choice is a mix of wait time and priority for assignment
 - Websockets are the best solution to tracking stuff in real time, whether a response was made to a ticket the advisor is following up one, work status switch, whether a ticket was reassigned etc
@@ -104,9 +110,12 @@ Recorded in V1. Replies and internal notes are already auditable because each is
 - Sessions are stateless: claims are signed into the cookie rather than held in a server-side store, so the app scales horizontally with no shared session store or sticky sessions. The cost is that a cookie cannot be revoked instantly, which matters because Managers ban accounts and change roles. This is handled with a security stamp, a value on the account, copied into the cookie at sign-in and re-checked periodically, so rotating it invalidates every outstanding cookie at once and covers bans, role changes and password resets with one mechanism. Caching the stamps in process memory was considered and rejected: it would be per-instance, so a revoked session could survive on whichever instance had not seen the change, undoing the reason for choosing stateless cookies in the first place.
 - Reply-by-email was skipped in favour of a notification containing a link to the ticket. Inbound mail needs an unguessable per-ticket reply token because `From:` headers are trivially forged, plus quoted-text and signature stripping that never fully works. The link drives customers to the portal where ticket state is visible anyway.
 - Ticket IDs are sequential integers. Enumeration is already prevented by ownership being enforced in the query rather than by the URL being unguessable. At scale an opaque public identifier would be added alongside the integer key, to avoid leaking ticket volume, while keeping the integer for index performance.
+- Staff sign-in uses ASP.NET Core Identity, while customer sign-in is built by hand. The customer side was built from scratch to learn how password hashing, lockout and verification codes work; the staff side uses the framework's implementation. Customers and staff use separate cookie schemes, so a customer cookie can never open a staff page. Keeping two implementations of the same mechanics is a maintenance cost, since fixes and limits have to be kept aligned by hand. In production the customer side would move onto Identity too, and staff would likely sign in through corporate single sign-on.
+- Staff roles live in Identity's role tables rather than a `StaffRole` enum, because a later version lets Admins create roles and grant permissions, which a fixed enum cannot model. The cost lands in V1: the check constraint that limited `Level` to Advisors is dropped, and one role per account is no longer guaranteed by the schema. Both rules move into the single role-change method described under Roles and permissions. Identity's `AddToRoleAsync` does not rotate the security stamp, so that method rotates it explicitly.
+- Staff 2FA codes come from Identity's email token provider instead of the stored, hashed codes used on the customer side. The code is computed from the account's security stamp and the current time, so nothing is stored, and rotating the stamp invalidates outstanding codes. The trade-offs are that a code is not single-use within its validity window, and a resend inside the same time step repeats the same code. Identity does not rate-limit sends, so the customer side's per-email resend limit is reused. Wrong codes count toward the same lockout as wrong passwords.
+- Ticket history stores an explicit `ActorType` plus two nullable foreign keys. A single `ActorID` column holding either a user or a staff ID was rejected because it cannot be a foreign key. Inferring System from both keys being null was rejected because a bug that forgets to set the actor would be recorded as a System action, silently and permanently corrupting the audit trail; with an explicit type, the check constraint rejects the row instead. `Message` keeps two foreign keys without a type because it has no System case, and its constraint already requires exactly one author.
 
 ## Open questions
 - Staff email: corporate domain vs free addresses for the demo
 - Whether SLA deadlines should count business days only, and how holidays are handled
 - Whether L2 to L1 de-escalation is modelled at all or handled by a Manager reassigning
-- Ticket history actor: an explicit `ActorType` column (User/Staff/System, numbered from 1 so a forgotten value fails the check constraint) vs two nullable foreign keys where both null means System. Must be decided before the history table is built.

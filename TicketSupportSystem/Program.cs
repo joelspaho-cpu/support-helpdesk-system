@@ -1,23 +1,41 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using TicketSupportSystem.Data;
+using TicketSupportSystem.Models;
 using TicketSupportSystem.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
 builder.Services.AddScoped<IHashingService, HashingService>();
-builder.Services.AddAuthentication("UserScheme").AddCookie("UserScheme", options => 
-{options.LoginPath = "/UserView/Login";}).AddCookie("StaffScheme", options => {options.AccessDeniedPath = "/AccessDenied";
-options.LoginPath = "/StaffView/Login";});
+builder.Services.AddIdentityCore<Staff>()
+                .AddRoles<IdentityRole<int>>()
+                .AddEntityFrameworkStores<AppDbContext>()
+                .AddSignInManager()
+                .AddDefaultTokenProviders();
+builder.Services.AddAuthentication("UserScheme")
+    .AddCookie("UserScheme", options =>
+    {
+        options.LoginPath = "/UserView/Login";
+    })
+    .AddIdentityCookies(cookies =>
+    {
+        cookies.ApplicationCookie!.Configure(options =>
+        {
+            options.LoginPath = "/StaffView/Login";
+            options.AccessDeniedPath = "/AccessDenied";
+        });
+    });
+
 
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
+builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero);
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.Configure<CodeHashingServiceOptions>(builder.Configuration.GetSection("Verification"));
 builder.Services.AddScoped<ICodeHashingService, CodeHashingService>();

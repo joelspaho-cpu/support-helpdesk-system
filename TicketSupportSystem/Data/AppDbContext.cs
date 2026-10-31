@@ -1,20 +1,17 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using TicketSupportSystem.Models;
 
 namespace TicketSupportSystem.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext : IdentityDbContext<Staff, IdentityRole<int>, int>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options){}
     protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
-            modelBuilder.Entity<Staff>()
-                .ToTable(t => t.HasCheckConstraint(
-                    "CK_Staff_LevelOnlyForAdvisors",
-                    $"\"Level\" IS NULL OR \"Role\" = {(int)StaffRole.Advisor}"));
-
+            modelBuilder.Entity<Staff>().ToTable("Staff");
             modelBuilder.Entity<Message>()
                 .ToTable(t => t.HasCheckConstraint(
                     "CK_Message_ExactlyOneAuthor",

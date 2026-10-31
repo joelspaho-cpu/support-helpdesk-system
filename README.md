@@ -48,6 +48,12 @@ Ordered from most important to least important:
   - Secure payment links, provided to customers depending on situation
   - Built-in translator
   - ML severity classificator right after ticket creation
+  ## CI/CD
+  - Build the Docker image in CI so a broken `Dockerfile` is caught on the PR rather than at deploy time.
+  - Fail CI when the EF Core model has changes without a matching migration (`dotnet ef migrations has-pending-model-changes`).
+  - Enforce code style with `dotnet format --verify-no-changes`.
+  - Treat compiler warnings as errors so new warnings cannot accumulate.
+  - Continuous deployment of `main` once a hosting target is chosen.
 # Deployment
   - <link> - future cloud deployment once the software is ready
   

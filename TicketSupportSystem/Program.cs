@@ -19,6 +19,7 @@ builder.Services.AddIdentityCore<Staff>(options =>
     options.Password.RequireUppercase = true;
     options.Password.RequireLowercase = true;
     options.Password.RequiredUniqueChars = 1;
+    options.User.RequireUniqueEmail = true;
     options.Lockout.MaxFailedAccessAttempts = 5;
     })
                 .AddRoles<IdentityRole<int>>()
@@ -43,6 +44,7 @@ builder.Services.AddAuthentication("UserScheme")
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IStaffService, StaffService>();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero);
 builder.Services.AddScoped<IEmailService, EmailService>();

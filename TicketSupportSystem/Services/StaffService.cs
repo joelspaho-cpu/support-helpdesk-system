@@ -20,9 +20,9 @@ public class StaffService : IStaffService
     {
         var role = await _roleManager.FindByNameAsync(request.Role);
         if (role == null) return IdentityResult.Failed(new IdentityError { Code = "RoleDoesntExist", Description = "The specified job role does not exist"});
-        var advisor = await _roleManager.FindByNameAsync(StaffRoles.Advisor);
-        if (request.Level != null && role != advisor) return IdentityResult.Failed(new IdentityError { Code = "NonAdvisorCantHaveLevel", Description = $"Only the job role {advisor.NormalizedName} may have a level"});
-        
+        if (request.Level != null && role.Name != StaffRoles.Advisor) return IdentityResult.Failed(new IdentityError { Code = "NonAdvisorCantHaveLevel", Description = $"Only the job role {StaffRoles.Advisor} may have a level"});
+        if (request.Level == null && role.Name == StaffRoles.Advisor) return IdentityResult.Failed(new IdentityError { Code = "AdvisorMustHaveLevel", Description = $"The job role {StaffRoles.Advisor} must have a level"});
+        await using var transaction = await _db.Database.BeginTransactionAsync();
         var staff = new Staff
         {
             DisplayName = request.DisplayName,
@@ -32,7 +32,19 @@ public class StaffService : IStaffService
             Email = request.Email,
             UserName = request.Email
         };
-        await _staffManager.CreateAsync(staff, request.Password);
-        await _db.SaveChangesAsync();
+        var result = await _staffManager.CreateAsync(staff, request.Password);
+        if (!result.Succeeded)
+        {
+            await transaction.RollbackAsync();
+            return result;
+        }
+        var roleAddResult = await _staffManager.AddToRoleAsync(staff, request.Role);
+        if (!roleAddResult.Succeeded)
+        {
+            await transaction.RollbackAsync();
+            return roleAddResult;
+        }
+        await transaction.CommitAsync();
+        return result;
     }
 }

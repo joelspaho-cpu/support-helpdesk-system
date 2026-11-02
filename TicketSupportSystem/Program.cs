@@ -8,14 +8,24 @@ using TicketSupportSystem.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>(options => 
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<IHashingService, HashingService>();
-builder.Services.AddIdentityCore<Staff>()
+builder.Services.AddIdentityCore<Staff>(options => 
+    {
+    options.Password.RequiredLength = 8;
+    options.Password.RequireDigit = true;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequiredUniqueChars = 1;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    })
                 .AddRoles<IdentityRole<int>>()
                 .AddEntityFrameworkStores<AppDbContext>()
                 .AddSignInManager()
                 .AddDefaultTokenProviders();
+                
 builder.Services.AddAuthentication("UserScheme")
     .AddCookie("UserScheme", options =>
     {
@@ -29,7 +39,6 @@ builder.Services.AddAuthentication("UserScheme")
             options.AccessDeniedPath = "/AccessDenied";
         });
     });
-
 
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
@@ -52,6 +61,7 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
 });
 builder.Services.Configure<AppOptions>(builder.Configuration.GetSection("App"));
+builder.Services.Configure<SeedOptions>(builder.Configuration.GetSection("Seed"));
 
 
 // Persist Data Protection keys (used to sign auth cookies) when a path is configured,

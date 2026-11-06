@@ -52,6 +52,7 @@ builder.Services.Configure<CodeHashingServiceOptions>(builder.Configuration.GetS
 builder.Services.AddScoped<ICodeHashingService, CodeHashingService>();
 builder.Services.AddScoped<IVerificationService, VerificationService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<StaffSeeder>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -86,6 +87,8 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+    var staffSeeder = scope.ServiceProvider.GetRequiredService<StaffSeeder>();
+    await staffSeeder.SeedAsync();
 }
 
 // Configure the HTTP request pipeline.

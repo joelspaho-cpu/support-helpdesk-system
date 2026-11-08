@@ -8,14 +8,25 @@ using TicketSupportSystem.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>(options => 
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<IHashingService, HashingService>();
-builder.Services.AddIdentityCore<Staff>()
+builder.Services.AddIdentityCore<Staff>(options => 
+    {
+    options.Password.RequiredLength = 8;
+    options.Password.RequireDigit = true;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequiredUniqueChars = 1;
+    options.User.RequireUniqueEmail = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    })
                 .AddRoles<IdentityRole<int>>()
                 .AddEntityFrameworkStores<AppDbContext>()
                 .AddSignInManager()
                 .AddDefaultTokenProviders();
+                
 builder.Services.AddAuthentication("UserScheme")
     .AddCookie("UserScheme", options =>
     {
@@ -30,10 +41,10 @@ builder.Services.AddAuthentication("UserScheme")
         });
     });
 
-
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IStaffService, StaffService>();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero);
 builder.Services.AddScoped<IEmailService, EmailService>();
@@ -41,6 +52,7 @@ builder.Services.Configure<CodeHashingServiceOptions>(builder.Configuration.GetS
 builder.Services.AddScoped<ICodeHashingService, CodeHashingService>();
 builder.Services.AddScoped<IVerificationService, VerificationService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<StaffSeeder>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -52,6 +64,7 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
 });
 builder.Services.Configure<AppOptions>(builder.Configuration.GetSection("App"));
+builder.Services.Configure<SeedOptions>(builder.Configuration.GetSection("Seed"));
 
 
 // Persist Data Protection keys (used to sign auth cookies) when a path is configured,
@@ -74,6 +87,8 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+    var staffSeeder = scope.ServiceProvider.GetRequiredService<StaffSeeder>();
+    await staffSeeder.SeedAsync();
 }
 
 // Configure the HTTP request pipeline.

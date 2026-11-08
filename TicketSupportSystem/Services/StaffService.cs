@@ -10,11 +10,11 @@ public class StaffService : IStaffService
     private readonly AppDbContext _db;
     private readonly UserManager<Staff> _staffManager;
     private readonly RoleManager<IdentityRole<int>> _roleManager;
-    public StaffService(UserManager<Staff> staffmanager, RoleManager<IdentityRole<int>> rolemanager, AppDbContext db)
+    public StaffService(UserManager<Staff> staffManager, RoleManager<IdentityRole<int>> roleManager, AppDbContext db)
     {
         _db = db;
-        _staffManager = staffmanager;
-        _roleManager = rolemanager;
+        _staffManager = staffManager;
+        _roleManager = roleManager;
     }
     public async Task<IdentityResult> CreateStaffAccountAsync(CreateStaffRequest request)
     {

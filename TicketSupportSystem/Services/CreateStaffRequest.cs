@@ -1,7 +1,7 @@
 using TicketSupportSystem.Models;
 
 namespace TicketSupportSystem.Services;
-public record CreateStaffRequest
+public class CreateStaffRequest
 {
     public required string Email {get; init;}
     public required string DisplayName {get; init;}

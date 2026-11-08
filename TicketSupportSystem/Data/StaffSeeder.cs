@@ -45,12 +45,13 @@ public class StaffSeeder{
         var adminName = _seedOptions.Value.Admin.DisplayName;
         var adminPassword = _seedOptions.Value.Admin.Password;
 
-        RequireSetting(adminEmail, "Seed:Admin:Email");
-        RequireSetting(adminName, "Seed:Admin:DisplayName");
-        RequireSetting(adminPassword, "Seed:Admin:Password");
 
-        if (await _staffManager.FindByEmailAsync(adminEmail) == null)
+        var admins = await _staffManager.GetUsersInRoleAsync(StaffRoles.Admin);
+        if (admins.Count == 0)
         {
+            RequireSetting(adminEmail, "Seed:Admin:Email");
+            RequireSetting(adminName, "Seed:Admin:DisplayName");
+            RequireSetting(adminPassword, "Seed:Admin:Password");
             var result = await CreateStaffAccountAsync(adminEmail, adminPassword, adminName, StaffRoles.Admin, null);
             EnsureSucceeded(result, adminEmail);
         }

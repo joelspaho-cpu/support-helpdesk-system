@@ -45,6 +45,6 @@ public class StaffService : IStaffService
             return roleAddResult;
         }
         await transaction.CommitAsync();
-        return result;
+        return IdentityResult.Success;
     }
 }

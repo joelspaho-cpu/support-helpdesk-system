@@ -1,13 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Authorization;
 using TicketSupportSystem.Extensions;
 using TicketSupportSystem.Services;
 using TicketSupportSystem.ViewModels;
 
 namespace TicketSupportSystem.Pages.UserView
 {
-    [Authorize(AuthenticationSchemes = "UserScheme")]
     public class LogoutModel : PageModel
     {
         public IActionResult OnGet()

@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using TicketSupportSystem.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.RateLimiting;
+using TicketSupportSystem.Models;
 
 
 namespace TicketSupportSystem.Pages.UserView
@@ -50,7 +51,7 @@ namespace TicketSupportSystem.Pages.UserView
                     if (prospect == null) { ModelState.AddModelError(nameof(Email), "You cannot sign in at this time, try again later or register if you haven't already"); return Page(); }
                     return RedirectToPage("/UserView/TwoFactorVerify", new { id = prospect.Value });}
                     var principal = _user.ConstructPrincipal(outcome.User.UserID);
-                    await HttpContext.SignInAsync("UserScheme", principal, new AuthenticationProperties { IsPersistent = RemainSignedIn });
+                    await HttpContext.SignInAsync(AuthSchemes.User, principal, new AuthenticationProperties { IsPersistent = RemainSignedIn });
                     return RedirectToPage("/UserView/Dashboard");
             }
             ModelState.AddModelError(nameof(Email), "Please attempt to login again");

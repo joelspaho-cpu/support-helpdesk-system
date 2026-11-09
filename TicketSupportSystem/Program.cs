@@ -27,8 +27,8 @@ builder.Services.AddIdentityCore<Staff>(options =>
                 .AddSignInManager()
                 .AddDefaultTokenProviders();
                 
-builder.Services.AddAuthentication("UserScheme")
-    .AddCookie("UserScheme", options =>
+builder.Services.AddAuthentication(AuthSchemes.User)
+    .AddCookie(AuthSchemes.User, options =>
     {
         options.LoginPath = "/UserView/Login";
     })

@@ -75,7 +75,7 @@ public class UserService : IUserService
             {
                new Claim(ClaimTypes.NameIdentifier, UserID.ToString())
             };
-         var identity = new ClaimsIdentity(claims, "UserScheme");
+         var identity = new ClaimsIdentity(claims, AuthSchemes.User);
          return new ClaimsPrincipal(identity);
     }
     public async Task<int?> CreateVerifiedUserAsync(PendingRegistration pending)

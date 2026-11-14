@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Authorization;
 using System.ComponentModel.DataAnnotations;
 using TicketSupportSystem.Models;
 using TicketSupportSystem.Extensions;
@@ -11,7 +10,6 @@ using TicketSupportSystem.Services;
 
 namespace TicketSupportSystem.Pages.UserView
 {
-    [Authorize(AuthenticationSchemes = "UserScheme")]
     public class TicketViewerModel : PageModel
     {
         private readonly IMessageService _msg;

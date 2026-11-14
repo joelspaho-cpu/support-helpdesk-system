@@ -1,14 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Authorization;
 using TicketSupportSystem.Extensions;
 using TicketSupportSystem.Services;
 
 
 namespace TicketSupportSystem.Pages.UserView
 {
-    [Authorize(AuthenticationSchemes = "UserScheme")]
     public class SettingsModel : PageModel
     {
         [BindProperty]

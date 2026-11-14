@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.RateLimiting;
+using TicketSupportSystem.Models;
 using TicketSupportSystem.Services;
 
 namespace TicketSupportSystem.Pages.UserView
@@ -42,7 +43,7 @@ namespace TicketSupportSystem.Pages.UserView
             {
                 case VerificationResult.Success:
                        var principal = _user.ConstructPrincipal(outcome.UserID!.Value);
-                       await HttpContext.SignInAsync("UserScheme", principal, new AuthenticationProperties { IsPersistent = outcome.IsPersistent });
+                       await HttpContext.SignInAsync(AuthSchemes.User, principal, new AuthenticationProperties { IsPersistent = outcome.IsPersistent });
                        return RedirectToPage("/UserView/Dashboard");
                 case VerificationResult.Expired:
                        ModelState.AddModelError(nameof(EnteredCode), "This code has expired, please request a new one");

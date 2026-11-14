@@ -2,14 +2,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using TicketSupportSystem.Models;
 using System.ComponentModel.DataAnnotations;
-using Microsoft.AspNetCore.Authorization;
 using TicketSupportSystem.Extensions;
 using TicketSupportSystem.Services;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace TicketSupportSystem.Pages.UserView
 {
-    [Authorize(AuthenticationSchemes = "UserScheme")]
     public class TicketCreationModel : PageModel
     {
         private readonly ITicketService _tk;

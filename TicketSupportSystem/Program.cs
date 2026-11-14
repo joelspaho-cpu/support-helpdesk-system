@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -27,8 +28,8 @@ builder.Services.AddIdentityCore<Staff>(options =>
                 .AddSignInManager()
                 .AddDefaultTokenProviders();
                 
-builder.Services.AddAuthentication("UserScheme")
-    .AddCookie("UserScheme", options =>
+builder.Services.AddAuthentication(AuthSchemes.User)
+    .AddCookie(AuthSchemes.User, options =>
     {
         options.LoginPath = "/UserView/Login";
     })
@@ -40,7 +41,20 @@ builder.Services.AddAuthentication("UserScheme")
             options.AccessDeniedPath = "/AccessDenied";
         });
     });
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AuthPolicies.StaffOnly, policy => policy
+        .AddAuthenticationSchemes(IdentityConstants.ApplicationScheme)
+        .RequireAuthenticatedUser());
 
+    options.AddPolicy(AuthPolicies.UserOnly, policy => policy
+        .AddAuthenticationSchemes(AuthSchemes.User)
+        .RequireAuthenticatedUser());
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+    .RequireAuthenticatedUser()
+    .Build();
+
+});
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -80,7 +94,22 @@ if (!string.IsNullOrEmpty(keysPath))
 
 
 // Add services to the container.
-builder.Services.AddRazorPages();
+builder.Services.AddRazorPages(options =>
+{
+    options.Conventions.AuthorizeFolder("/StaffView", AuthPolicies.StaffOnly);
+    options.Conventions.AllowAnonymousToPage("/StaffView/Login");
+    options.Conventions.AllowAnonymousToPage("/StaffView/TwoFactorVerify");
+
+    options.Conventions.AuthorizeFolder("/UserView", AuthPolicies.UserOnly);
+    options.Conventions.AllowAnonymousToPage("/UserView/Login");
+    options.Conventions.AllowAnonymousToPage("/UserView/Register");
+    options.Conventions.AllowAnonymousToPage("/UserView/ForgotPassword");
+    options.Conventions.AllowAnonymousToPage("/UserView/ResetPassword");
+    options.Conventions.AllowAnonymousToPage("/UserView/VerifyEmail");
+    options.Conventions.AllowAnonymousToPage("/UserView/TwoFactorVerify");
+    
+});
+
 
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())

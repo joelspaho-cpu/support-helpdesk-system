@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -49,6 +50,10 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(AuthPolicies.UserOnly, policy => policy
         .AddAuthenticationSchemes(AuthSchemes.User)
         .RequireAuthenticatedUser());
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+    .RequireAuthenticatedUser()
+    .Build();
+
 });
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
@@ -102,6 +107,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/UserView/ResetPassword");
     options.Conventions.AllowAnonymousToPage("/UserView/VerifyEmail");
     options.Conventions.AllowAnonymousToPage("/UserView/TwoFactorVerify");
+    
 });
 
 

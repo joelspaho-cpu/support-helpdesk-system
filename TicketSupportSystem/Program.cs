@@ -46,14 +46,13 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(AuthPolicies.StaffOnly, policy => policy
         .AddAuthenticationSchemes(IdentityConstants.ApplicationScheme)
         .RequireAuthenticatedUser());
-
     options.AddPolicy(AuthPolicies.UserOnly, policy => policy
         .AddAuthenticationSchemes(AuthSchemes.User)
         .RequireAuthenticatedUser());
+    // Any page without its own rule requires a signed-in user, so a forgotten folder fails closed.
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
-    .RequireAuthenticatedUser()
-    .Build();
-
+        .RequireAuthenticatedUser()
+        .Build();
 });
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
@@ -107,7 +106,11 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/UserView/ResetPassword");
     options.Conventions.AllowAnonymousToPage("/UserView/VerifyEmail");
     options.Conventions.AllowAnonymousToPage("/UserView/TwoFactorVerify");
-    
+
+    options.Conventions.AllowAnonymousToPage("/Index");
+    options.Conventions.AllowAnonymousToPage("/Privacy");
+    options.Conventions.AllowAnonymousToPage("/Error");
+    options.Conventions.AllowAnonymousToPage("/AccessDenied");
 });
 
 
@@ -134,7 +137,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapStaticAssets();
+app.MapStaticAssets().AllowAnonymous();
 app.MapRazorPages()
    .WithStaticAssets();
 

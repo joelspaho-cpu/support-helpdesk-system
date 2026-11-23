@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using TicketSupportSystem.Extensions;
-using TicketSupportSystem.Services;
-using TicketSupportSystem.ViewModels;
 
 namespace TicketSupportSystem.Pages.UserView
 {

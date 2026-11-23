@@ -5,8 +5,9 @@ namespace TicketSupportSystem.Pages.StaffView
 {
     public class DashboardModel : PageModel
     {
-        public void OnGet()
+        public IActionResult OnGet()
         {
+            return Page();
         }
     }
 }
